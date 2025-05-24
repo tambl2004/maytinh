@@ -187,7 +187,7 @@ $current_products = array_slice($filtered_products, $offset, $products_per_page)
     <!-- Breadcrumb -->
     <nav aria-label="breadcrumb">
         <ol class="breadcrumb breadcrumb-custom">
-            <li class="breadcrumb-item"><a href="?option=home">Trang chủ</a></li>
+            <li class="breadcrumb-item"><a href="?option=home" class="text-decoration-none">Trang chủ</a></li>
             <li class="breadcrumb-item active">Sản phẩm</li>
             <?php if ($selected_category): ?>
                 <li class="breadcrumb-item active"><?= ucfirst($selected_category) ?></li>

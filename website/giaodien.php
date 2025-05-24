@@ -1,3 +1,7 @@
+<?php
+
+$option = isset($_GET['option']) ? $_GET['option'] : 'home';  
+?>
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -8,35 +12,58 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/main2.css">
+    <link rel="stylesheet" href="css/main3.css">
+    <link rel="stylesheet" href="css/nav.css">
 </head>
 <body>
     <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-dark">
-        <div class="container">
-            <a class="navbar-brand" href="?option=home"><i class="fas fa-laptop"></i> TechLaptop</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+    <nav class="navbar navbar-expand-lg navbar-light bg-custom-gradient">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="?option=home">
+                <img src="https://via.placeholder.com/30x30.png?text=TL" alt="" class="me-2"> TechLaptop
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
             </button>
-            <div class="search-container position-relative">
-                <div class="d-flex">
-                    <input type="text" class="search-input" id="searchInput" placeholder="Tìm kiếm laptop (VD: Dell XPS, HP Gaming...)">
-                    <button class="search-btn" onclick="performSearch()"><i class="fas fa-search"></i>Tìm kiếm</button>
-                </div>
-                <div class="autocomplete-suggestions" id="autocompleteSuggestions"></div>
-            </div>
             <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
-                    <li class="nav-item"><a class="nav-link" href="?option=home"><i class="fas fa-home"></i> Trang chủ</a></li>
-                    <li class="nav-item"><a class="nav-link" href="?option=sanpham"><i class="fas fa-laptop"></i> Sản phẩm</a></li>
-                    <li class="nav-item"><a class="nav-link" href="?option=lienhe"><i class="fas fa-phone"></i> Liên hệ</a></li>
-                    <li class="nav-item"><a class="nav-link" href="?option=yeuthich"><i class="fas fa-heart"></i> Yêu thích</a></li>
+                <ul class="navbar-nav mx-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="?option=giohang">
-                            <i class="fas fa-shopping-cart"></i> Giỏ hàng 
-                            <span class="badge bg-danger" id="cartCount">0</span>
+                        <a class="nav-link <?php echo ($option == 'home') ? 'active' : ''; ?>" href="?option=home">Trang chủ</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link <?php echo ($option == 'sanpham') ? 'active' : ''; ?>" href="?option=sanpham">Sản phẩm</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link <?php echo ($option == 'lienhe') ? 'active' : ''; ?>" href="?option=lienhe">Liên hệ</a>
+                    </li>
+                   
+                </ul>
+                <form class="d-flex ms-auto" role="search">
+                    <div class="search-container position-relative">
+                    <div class="d-flex">
+                        <input type="text" class="search-input" id="searchInput" placeholder="Tìm kiếm laptop (VD: Dell XPS, HP Gaming...)">
+                        <button class="search-btn" onclick="performSearch()"><i class="fas fa-search"></i>Tìm kiếm</button>
+                    </div>
+                    <div class="autocomplete-suggestions" id="autocompleteSuggestions"></div>
+                </div>
+                </form>
+                <ul class="navbar-nav ms-3">
+                     <li class="nav-item">
+                        <a class="nav-link <?php echo ($option == 'yeuthich') ? 'active' : ''; ?>" href="?option=yeuthich">
+                            <i class="fas fa-heart" style="font-size: 1.5em;"></i>
                         </a>
                     </li>
-                    <li class="nav-item"><a class="nav-link" href="../login.php"><i class="fas fa-user"></i> Đăng nhập</a></li>
+                    <li class="nav-item">
+                        <a class="nav-link <?php echo ($option == 'giohang') ? 'active' : ''; ?>" href="?option=giohang">
+                            <i class="fas fa-shopping-cart" style="font-size: 1.5em;"></i><span class="badge bg-danger" style="position: relative; bottom: 15px;">3</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link <?php echo ($option == 'taikhoan') ? 'active' : ''; ?>" href="?option=taikhoan">Tài khoản</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="../login.php">Đăng nhập</a>
+                    </li>
                 </ul>
             </div>
         </div>
@@ -44,7 +71,6 @@
 
     <main>
     <?php
-          $option = isset($_GET['option']) ? $_GET['option'] : 'home';  
           switch ($option) {
               case 'home':
                   include 'views/trangchu.php';
@@ -63,6 +89,12 @@
                   break;
                 case 'giohang':
                   include 'views/giohang.php';
+                  break;
+                case 'thanhtoan':
+                  include 'views/thanhtoan.php';
+                  break;
+                case 'taikhoan':
+                  include 'views/taikhoan.php';
                   break;
               default:
                   include '404.php';

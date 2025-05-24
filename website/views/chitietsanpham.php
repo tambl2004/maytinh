@@ -3,9 +3,9 @@
     <div class="container mt-4">
         <nav class="breadcrumb-custom">
             <ol class="breadcrumb mb-0">
-                <li class="breadcrumb-item"><a href="giaodien.php">Trang chủ</a></li>
-                <li class="breadcrumb-item"><a href="#">Laptop</a></li>
-                <li class="breadcrumb-item"><a href="#">Dell</a></li>
+                <li class="breadcrumb-item"><a href="?option=home" class="text-decoration-none">Trang chủ</a></li>
+                <li class="breadcrumb-item"><a href="?option=sanpham" class="text-decoration-none">Laptop</a></li>
+                <li class="breadcrumb-item"><a href="?option=sanpham" class="text-decoration-none">Dell</a></li>
                 <li class="breadcrumb-item active">Dell XPS 13 Plus</li>
             </ol>
         </nav>
@@ -19,11 +19,11 @@
                 <div class="col-lg-6">
                     <div class="product-gallery">
                         <div class="product-badge-large sale">GIẢM GIÁ</div>
-                        <img src="https://images.unsplash.com/photo-1496181133206-80ce9b88a853?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" 
+                        <img src="https://product.hstatic.net/200000553329/product/dell-xps-9360-laptop-doanh-nhan-cao-cap-407-2_e54f1a7dcc0745a1b25c6208824eb641.jpg" 
                              alt="Dell XPS 13 Plus" class="main-image" id="mainImage">
                         
                         <div class="thumbnail-container">
-                            <img src="https://images.unsplash.com/photo-1496181133206-80ce9b88a853?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&q=80" 
+                            <img src="https://product.hstatic.net/200000553329/product/dell-xps-9360-laptop-doanh-nhan-cao-cap-407-2_e54f1a7dcc0745a1b25c6208824eb641.jpg" 
                                  alt="Dell XPS 13 Plus" class="thumbnail active" onclick="changeImage(this.src)">
                             <img src="https://images.unsplash.com/photo-1593642702821-c8da6771f0c6?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&q=80" 
                                  alt="Dell XPS 13 Plus" class="thumbnail" onclick="changeImage(this.src)">
@@ -135,13 +135,13 @@
     <div class="container mb-5">
         <ul class="nav nav-tabs nav-tabs-custom" id="productTabs" role="tablist">
             <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="specs-tab" data-bs-toggle="tab" data-bs-target="#specs" type="button">Thông số kỹ thuật</button>
+                <button class="nav-link1 active" id="specs-tab" data-bs-toggle="tab" data-bs-target="#specs" type="button">Thông số kỹ thuật</button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link" id="description-tab" data-bs-toggle="tab" data-bs-target="#description" type="button">Mô tả chi tiết</button>
+                <button class="nav-link1" id="description-tab" data-bs-toggle="tab" data-bs-target="#description" type="button">Mô tả chi tiết</button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link" id="reviews-tab" data-bs-toggle="tab" data-bs-target="#reviews" type="button">Đánh giá (128)</button>
+                <button class="nav-link1" id="reviews-tab" data-bs-toggle="tab" data-bs-target="#reviews" type="button">Đánh giá (128)</button>
             </li>
         </ul>
         
