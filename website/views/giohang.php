@@ -1,45 +1,31 @@
 <?php
+$userId = $_SESSION['id'];
 
-// Giả lập giỏ hàng từ session
-$cart = isset($_SESSION['cart']) ? $_SESSION['cart'] : [];
+// Lấy giỏ hàng từ database
+$sql = "SELECT g.sanpham_id, g.soluong, s.id, s.ten, s.gia, s.giacu, s.hinhanh, s.thongso, s.soluongton,
+               t.ten AS brand, d.ten AS category
+        FROM giohang g
+        JOIN sanpham s ON g.sanpham_id = s.id
+        JOIN thuonghieu t ON s.thuonghieu_id = t.id
+        JOIN danhmuc d ON s.danhmuc_id = d.id
+        WHERE g.nguoidung_id = ?";
+$stmt = $conn->prepare($sql);
+$stmt->bind_param("i", $userId);
+$stmt->execute();
+$result = $stmt->get_result();
+
 $cartItems = [];
 $total = 0;
 $discount = 0; // Giả lập, cần logic áp mã giảm giá
 $shipping = 50000; // Phí vận chuyển cố định
 
-if (!empty($cart)) {
-    // Lấy danh sách id sản phẩm hợp lệ
-    $ids = array_keys($cart);
-    // Chỉ giữ các id là số nguyên dương
-    $ids = array_filter($ids, function($id) {
-        return is_numeric($id) && (int)$id > 0;
-    });
-
-    if (!empty($ids)) {
-        // Chuẩn bị truy vấn với placeholders động
-        $placeholders = implode(',', array_fill(0, count($ids), '?'));
-        $sql = "SELECT s.id, s.ten, s.gia, s.giacu, s.hinhanh, s.thongso, s.soluongton,
-                       t.ten AS brand, d.ten AS category
-                FROM sanpham s
-                JOIN thuonghieu t ON s.thuonghieu_id = t.id
-                JOIN danhmuc d ON s.danhmuc_id = d.id
-                WHERE s.id IN ($placeholders)";
-        
-        $stmt = $conn->prepare($sql);
-        // Gắn các id vào truy vấn
-        $stmt->bind_param(str_repeat('i', count($ids)), ...$ids);
-        $stmt->execute();
-        $result = $stmt->get_result();
-
-        while ($row = $result->fetch_assoc()) {
-            $row['quantity'] = $cart[$row['id']]['quantity'];
-            $row['subtotal'] = $row['gia'] * $row['quantity'];
-            $total += $row['subtotal'];
-            $cartItems[] = $row;
-        }
-        $stmt->close();
-    }
+while ($row = $result->fetch_assoc()) {
+    $row['quantity'] = $row['soluong'];
+    $row['subtotal'] = $row['gia'] * $row['quantity'];
+    $total += $row['subtotal'];
+    $cartItems[] = $row;
 }
+$stmt->close();
 ?>
 
 <!-- Breadcrumb -->
@@ -248,7 +234,7 @@ function updateQuantity(itemId, action) {
         currentValue--;
     }
     
-    fetch('../controllers/cart_controller.php', {
+    fetch('controllers/cart_controller.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: `action=update&product_id=${itemId}&quantity=${currentValue}`
@@ -267,7 +253,7 @@ function updateQuantity(itemId, action) {
 
 function removeFromCart(itemId) {
     if (confirm('Bạn có chắc chắn muốn xóa sản phẩm này khỏi giỏ hàng?')) {
-        fetch('../controllers/cart_controller.php', {
+        fetch('controllers/cart_controller.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: `action=remove&product_id=${itemId}`
@@ -290,7 +276,7 @@ function removeFromCart(itemId) {
 }
 
 function addToWishlist(itemId) {
-    fetch('../controllers/favorite_controller.php', {
+    fetch('controllers/favorite_controller.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: `action=add&product_id=${itemId}`
@@ -309,7 +295,7 @@ function addToWishlist(itemId) {
 
 function clearCart() {
     if (confirm('Bạn có chắc chắn muốn xóa toàn bộ giỏ hàng?')) {
-        fetch('../controllers/cart_controller.php', {
+        fetch('controllers/cart_controller.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: 'action=clear'
@@ -334,7 +320,7 @@ function updateCart() {
 function applyCoupon() {
     const couponCode = document.getElementById('couponCode').value.trim();
     if (couponCode) {
-        fetch('../controllers/coupon_controller.php', {
+        fetch('controllers/coupon_controller.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: `action=apply&code=${couponCode}`
@@ -384,4 +370,18 @@ function showToast(message, type = 'success') {
     const toast = new bootstrap.Toast(toastElement);
     toast.show();
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Load số lượng giỏ hàng
+    fetch('controllers/cart_controller.php?action=get_count')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const cartCount = document.querySelector('.badge.bg-danger');
+                if (cartCount) {
+                    cartCount.textContent = data.count;
+                }
+            }
+        });
+});
 </script>

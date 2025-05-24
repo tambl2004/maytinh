@@ -1,59 +1,172 @@
 <?php
 session_start();
-include '../config/connect.php';
+require_once '../../config/connect.php';
 
 header('Content-Type: application/json');
+
+if (!isset($_SESSION['id'])) {
+    echo json_encode(['success' => false, 'message' => 'Chưa đăng nhập']);
+    exit();
+}
+
+$userId = $_SESSION['id'];
+$action = $_POST['action'] ?? '';
+
 $response = ['success' => false];
 
-if ($action = $_POST['action'] ?? $_GET['action'] ?? '') {
-    if ($action === 'add') {
-        $product_id = $_POST['product_id'] ?? 0;
-        $quantity = $_POST['quantity'] ?? 1;
-        if (!isset($_SESSION['cart'])) {
-            $_SESSION['cart'] = [];
+switch ($action) {
+    case 'add':
+        $productId = isset($_POST['product_id']) ? (int)$_POST['product_id'] : 0;
+        $quantity = isset($_POST['quantity']) ? (int)$_POST['quantity'] : 1;
+
+        if ($productId <= 0 || $quantity <= 0) {
+            $response['message'] = 'Dữ liệu không hợp lệ';
+            break;
         }
-        $_SESSION['cart'][$product_id] = ['quantity' => $quantity];
-        $response['success'] = true;
-    } elseif ($action === 'remove') {
-        $product_id = $_POST['product_id'] ?? 0;
-        if (isset($_SESSION['cart'][$product_id])) {
-            unset($_SESSION['cart'][$product_id]);
-            $response['success'] = true;
+
+        // Kiểm tra sản phẩm có tồn tại và còn hàng không
+        $sqlCheckProduct = "SELECT soluongton FROM sanpham WHERE id = ? AND trangthai = 'hoatdong'";
+        $stmtCheckProduct = $conn->prepare($sqlCheckProduct);
+        $stmtCheckProduct->bind_param("i", $productId);
+        $stmtCheckProduct->execute();
+        $resultCheckProduct = $stmtCheckProduct->get_result();
+
+        if ($resultCheckProduct->num_rows === 0) {
+            $response['message'] = 'Sản phẩm không tồn tại';
+            $stmtCheckProduct->close();
+            break;
         }
-    } elseif ($action === 'update') {
-        $product_id = $_POST['product_id'] ?? 0;
-        $quantity = $_POST['quantity'] ?? 1;
-        if (isset($_SESSION['cart'][$product_id])) {
-            $_SESSION['cart'][$product_id]['quantity'] = $quantity;
-            $response['success'] = true;
+
+        $product = $resultCheckProduct->fetch_assoc();
+        if ($product['soluongton'] < $quantity) {
+            $response['message'] = 'Sản phẩm không đủ số lượng trong kho';
+            $stmtCheckProduct->close();
+            break;
         }
-    } elseif ($action === 'clear') {
-        $_SESSION['cart'] = [];
-        $response['success'] = true;
-    } elseif ($action === 'get_count') {
-        $count = 0;
-        if (isset($_SESSION['cart'])) {
-            foreach ($_SESSION['cart'] as $item) {
-                $count += $item['quantity'];
+        $stmtCheckProduct->close();
+
+        // Kiểm tra xem sản phẩm đã có trong giỏ hàng chưa
+        $sqlCheckCart = "SELECT id, soluong FROM giohang WHERE nguoidung_id = ? AND sanpham_id = ?";
+        $stmtCheckCart = $conn->prepare($sqlCheckCart);
+        $stmtCheckCart->bind_param("ii", $userId, $productId);
+        $stmtCheckCart->execute();
+        $resultCheckCart = $stmtCheckCart->get_result();
+
+        if ($resultCheckCart->num_rows > 0) {
+            // Cập nhật số lượng nếu sản phẩm đã có trong giỏ hàng
+            $cartItem = $resultCheckCart->fetch_assoc();
+            $newQuantity = $cartItem['soluong'] + $quantity;
+
+            if ($newQuantity > $product['soluongton']) {
+                $response['message'] = 'Số lượng vượt quá tồn kho';
+                $stmtCheckCart->close();
+                break;
             }
-        }
-        $response['success'] = true;
-        $response['count'] = $count;
-    } elseif ($action === 'add_all_favorites') {
-        $user_id = $_SESSION['user_id'];
-        $stmt = $conn->prepare("SELECT sanpham_id FROM yeuthich WHERE nguoidung_id = ?");
-        $stmt->bind_param("i", $user_id);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        while ($row = $result->fetch_assoc()) {
-            $product_id = $row['sanpham_id'];
-            if (!isset($_SESSION['cart'][$product_id])) {
-                $_SESSION['cart'][$product_id] = ['quantity' => 1];
+
+            $sqlUpdate = "UPDATE giohang SET soluong = ? WHERE nguoidung_id = ? AND sanpham_id = ?";
+            $stmtUpdate = $conn->prepare($sqlUpdate);
+            $stmtUpdate->bind_param("iii", $newQuantity, $userId, $productId);
+            if ($stmtUpdate->execute()) {
+                $response = ['success' => true];
             }
+            $stmtUpdate->close();
+        } else {
+            // Thêm mới vào giỏ hàng
+            $sqlInsert = "INSERT INTO giohang (nguoidung_id, sanpham_id, soluong) VALUES (?, ?, ?)";
+            $stmtInsert = $conn->prepare($sqlInsert);
+            $stmtInsert->bind_param("iii", $userId, $productId, $quantity);
+            if ($stmtInsert->execute()) {
+                $response = ['success' => true];
+            }
+            $stmtInsert->close();
         }
-        $response['success'] = true;
-    }
+        $stmtCheckCart->close();
+        break;
+
+    case 'update':
+        $productId = isset($_POST['product_id']) ? (int)$_POST['product_id'] : 0;
+        $quantity = isset($_POST['quantity']) ? (int)$_POST['quantity'] : 0;
+
+        if ($productId <= 0 || $quantity <= 0) {
+            $response['message'] = 'Dữ liệu không hợp lệ';
+            break;
+        }
+
+        // Kiểm tra sản phẩm có tồn tại và còn hàng không
+        $sqlCheckProduct = "SELECT soluongton FROM sanpham WHERE id = ? AND trangthai = 'hoatdong'";
+        $stmtCheckProduct = $conn->prepare($sqlCheckProduct);
+        $stmtCheckProduct->bind_param("i", $productId);
+        $stmtCheckProduct->execute();
+        $resultCheckProduct = $stmtCheckProduct->get_result();
+
+        if ($resultCheckProduct->num_rows === 0) {
+            $response['message'] = 'Sản phẩm không tồn tại';
+            $stmtCheckProduct->close();
+            break;
+        }
+
+        $product = $resultCheckProduct->fetch_assoc();
+        if ($product['soluongton'] < $quantity) {
+            $response['message'] = 'Số lượng vượt quá tồn kho';
+            $stmtCheckProduct->close();
+            break;
+        }
+        $stmtCheckProduct->close();
+
+        $sqlUpdate = "UPDATE giohang SET soluong = ? WHERE nguoidung_id = ? AND sanpham_id = ?";
+        $stmtUpdate = $conn->prepare($sqlUpdate);
+        $stmtUpdate->bind_param("iii", $quantity, $userId, $productId);
+        if ($stmtUpdate->execute()) {
+            $response = ['success' => true];
+        }
+        $stmtUpdate->close();
+        break;
+
+    case 'remove':
+        $productId = isset($_POST['product_id']) ? (int)$_POST['product_id'] : 0;
+
+        if ($productId <= 0) {
+            $response['message'] = 'ID sản phẩm không hợp lệ';
+            break;
+        }
+
+        $sqlDelete = "DELETE FROM giohang WHERE nguoidung_id = ? AND sanpham_id = ?";
+        $stmtDelete = $conn->prepare($sqlDelete);
+        $stmtDelete->bind_param("ii", $userId, $productId);
+        if ($stmtDelete->execute()) {
+            $response = ['success' => true];
+        }
+        $stmtDelete->close();
+        break;
+
+    case 'clear':
+        $sqlClear = "DELETE FROM giohang WHERE nguoidung_id = ?";
+        $stmtClear = $conn->prepare($sqlClear);
+        $stmtClear->bind_param("i", $userId);
+        if ($stmtClear->execute()) {
+            $response = ['success' => true];
+        }
+        $stmtClear->close();
+        break;
+
+    case 'get_count':
+        $sqlCount = "SELECT SUM(soluong) as count FROM giohang WHERE nguoidung_id = ?";
+        $stmtCount = $conn->prepare($sqlCount);
+        $stmtCount->bind_param("i", $userId);
+        $stmtCount->execute();
+        $resultCount = $stmtCount->get_result();
+        $row = $resultCount->fetch_assoc();
+        $response = [
+            'success' => true,
+            'count' => (int)($row['count'] ?? 0)
+        ];
+        $stmtCount->close();
+        break;
+
+    default:
+        $response['message'] = 'Hành động không hợp lệ';
 }
 
 echo json_encode($response);
+$conn->close();
 ?>

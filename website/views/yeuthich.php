@@ -1,7 +1,7 @@
 <?php
+$user_id = $_SESSION['id'];
 
 // Lấy danh sách sản phẩm yêu thích của người dùng
-$user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : 0;
 $sql = "SELECT s.id, s.ten, s.gia, s.giacu, s.hinhanh, s.thuonghieu_id, s.danhmuc_id, s.ngaytao, t.ten AS brand, d.ten AS category,
         (SELECT AVG(diemso) FROM danhgia WHERE sanpham_id = s.id) AS rating,
         (SELECT COUNT(*) FROM danhgia WHERE sanpham_id = s.id) AS reviews
@@ -15,6 +15,7 @@ $stmt->bind_param("i", $user_id);
 $stmt->execute();
 $result = $stmt->get_result();
 $favoriteProducts = $result->fetch_all(MYSQLI_ASSOC);
+$stmt->close();
 
 function formatPrice($price) {
     return number_format($price, 0, ',', '.') . '₫';
@@ -120,7 +121,7 @@ function renderStars($rating) {
             <div class="mb-4">
                 <p class="text-muted">
                     <i class="fas fa-heart text-danger me-2"></i>
-                    Hiển thị <strong><?php echo count($favoriteProducts); ?></strong> sản phẩm yêu thích
+                    Hiển thị <strong id="favoriteCount"><?php echo count($favoriteProducts); ?></strong> sản phẩm yêu thích
                 </p>
             </div>
 
@@ -382,10 +383,7 @@ function addAllToCart() {
 
 function updateFavoriteCount() {
     const visibleProducts = document.querySelectorAll('.product-item:not([style*="display: none"])').length;
-    const countText = document.querySelector('.text-muted strong');
-    if (countText) {
-        countText.textContent = visibleProducts;
-    }
+    document.getElementById('favoriteCount').textContent = visibleProducts;
 }
 
 function updateCartCount() {
@@ -430,5 +428,8 @@ document.addEventListener('DOMContentLoaded', function() {
             product.style.transform = 'translateY(0)';
         }, index * 100);
     });
+
+    // Load số lượng giỏ hàng
+    updateCartCount();
 });
 </script>

@@ -1,7 +1,12 @@
 <?php
 session_start();
 include '../config/connect.php';
-$option = isset($_GET['option']) ? $_GET['option'] : 'home';  
+require_once '../inc/auth.php'; // Bao gồm file auth.php
+
+// Kiểm tra trạng thái đăng nhập và vai trò
+$isLoggedIn = isLoggedIn();
+$userRole = getUserRole();
+$option = isset($_GET['option']) ? $_GET['option'] : 'home';
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -37,19 +42,18 @@ $option = isset($_GET['option']) ? $_GET['option'] : 'home';
                     <li class="nav-item">
                         <a class="nav-link <?php echo ($option == 'lienhe') ? 'active' : ''; ?>" href="?option=lienhe">Liên hệ</a>
                     </li>
-                   
                 </ul>
                 <form class="d-flex ms-auto" role="search">
                     <div class="search-container position-relative">
-                    <div class="d-flex">
-                        <input type="text" class="search-input" id="searchInput" placeholder="Tìm kiếm laptop (VD: Dell XPS, HP Gaming...)">
-                        <button class="search-btn" onclick="performSearch()"><i class="fas fa-search"></i>Tìm kiếm</button>
+                        <div class="d-flex">
+                            <input type="text" class="search-input" id="searchInput" placeholder="Tìm kiếm laptop (VD: Dell XPS, HP Gaming...)">
+                            <button class="search-btn" onclick="performSearch()"><i class="fas fa-search"></i>Tìm kiếm</button>
+                        </div>
+                        <div class="autocomplete-suggestions" id="autocompleteSuggestions"></div>
                     </div>
-                    <div class="autocomplete-suggestions" id="autocompleteSuggestions"></div>
-                </div>
                 </form>
                 <ul class="navbar-nav ms-3">
-                     <li class="nav-item">
+                    <li class="nav-item">
                         <a class="nav-link <?php echo ($option == 'yeuthich') ? 'active' : ''; ?>" href="?option=yeuthich">
                             <i class="fas fa-heart" style="font-size: 1.5em;"></i>
                         </a>
@@ -60,10 +64,16 @@ $option = isset($_GET['option']) ? $_GET['option'] : 'home';
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link <?php echo ($option == 'taikhoan') ? 'active' : ''; ?>" href="?option=taikhoan">Tài khoản</a>
+                        <a class="nav-link <?php echo ($option == 'taikhoan') ? 'active' : ''; ?>" href="?option=taikhoan"><i class="fa-solid fa-circle-user" style="font-size: 1.5em;"></i></a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="../login.php">Đăng nhập</a>
+                        <?php if ($isLoggedIn && $userRole == 'khachhang'): ?>
+                            <a class="nav-link" href="?action=logout" title="Đăng xuất">
+                                <i class="fas fa-sign-out-alt" style="font-size: 1.5em;"></i>
+                            </a>
+                        <?php else: ?>
+                            <a class="nav-link" href="../login.php">Đăng nhập</a>
+                        <?php endif; ?>
                     </li>
                 </ul>
             </div>
@@ -79,22 +89,22 @@ $option = isset($_GET['option']) ? $_GET['option'] : 'home';
               case 'sanpham':
                   include 'views/sanpham.php';
                   break;
-                case 'lienhe':
+              case 'lienhe':
                   include 'views/lienhe.php';
                   break;
-                case 'yeuthich':
+              case 'yeuthich':
                   include 'views/yeuthich.php';
                   break;
-                case 'chitietsanpham':
+              case 'chitietsanpham':
                   include 'views/chitietsanpham.php';
                   break;
-                case 'giohang':
+              case 'giohang':
                   include 'views/giohang.php';
                   break;
-                case 'thanhtoan':
+              case 'thanhtoan':
                   include 'views/thanhtoan.php';
                   break;
-                case 'taikhoan':
+              case 'taikhoan':
                   include 'views/taikhoan.php';
                   break;
               default:

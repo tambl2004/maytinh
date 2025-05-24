@@ -1,5 +1,6 @@
 <?php
 
+$userId = $_SESSION['id'];
 
 // Lấy danh sách sản phẩm từ database
 $query = "SELECT s.*, t.ten as thuonghieu, d.ten as danhmuc 
@@ -23,6 +24,18 @@ while ($row = mysqli_fetch_assoc($result)) {
         'description' => $row['mota']
     ];
 }
+
+// Lấy danh sách yêu thích
+$favoriteIds = [];
+$sqlFavorites = "SELECT sanpham_id FROM yeuthich WHERE nguoidung_id = ?";
+$stmtFavorites = $conn->prepare($sqlFavorites);
+$stmtFavorites->bind_param("i", $userId);
+$stmtFavorites->execute();
+$resultFavorites = $stmtFavorites->get_result();
+while ($row = $resultFavorites->fetch_assoc()) {
+    $favoriteIds[] = $row['sanpham_id'];
+}
+$stmtFavorites->close();
 
 // Lấy danh sách thương hiệu
 $brand_query = "SELECT ten FROM thuonghieu";
@@ -155,26 +168,11 @@ while ($row = mysqli_fetch_assoc($category_result)) {
     </div>
 </section>
 
-<!-- Toast Notification -->
-<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9999;">
-    <div id="successToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
-        <div class="toast-header">
-            <i class="fas fa-check-circle text-success me-2"></i>
-            <strong class="me-auto">Thành công</strong>
-            <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
-        </div>
-        <div class="toast-body" id="toastMessage">
-            Sản phẩm đã được thêm vào giỏ hàng!
-        </div>
-    </div>
-</div>
-
 <script>
 // Dữ liệu sản phẩm từ PHP
 const laptops = <?php echo json_encode($products); ?>;
 let filteredLaptops = [...laptops];
-let favorites = [];
-let cart = [];
+const favoriteIds = <?php echo json_encode($favoriteIds); ?>;
 
 // Format price to Vietnamese currency
 function formatPrice(price) {
@@ -185,78 +183,70 @@ function formatPrice(price) {
 }
 
 // Show toast notification
-function showToast(message) {
-    document.getElementById('toastMessage').textContent = message;
-    const toast = new bootstrap.Toast(document.getElementById('successToast'));
+function showToast(message, type = 'success') {
+    const toastElement = document.getElementById('successToast');
+    const toastMessage = document.getElementById('toastMessage');
+    toastMessage.textContent = message;
+    
+    const toastIcon = toastElement.querySelector('.toast-header i');
+    if (type === 'warning') {
+        toastIcon.className = 'fas fa-exclamation-triangle text-warning me-2';
+        toastElement.querySelector('.toast-header strong').textContent = 'Thông báo';
+    } else {
+        toastIcon.className = 'fas fa-check-circle text-success me-2';
+        toastElement.querySelector('.toast-header strong').textContent = 'Thành công';
+    }
+    
+    const toast = new bootstrap.Toast(toastElement);
     toast.show();
 }
 
 // Toggle favorite
 function toggleFavorite(id) {
-    const index = favorites.indexOf(id);
-    if (index > -1) {
-        favorites.splice(index, 1);
-        showToast('Đã xóa khỏi danh sách yêu thích!');
-    } else {
-        favorites.push(id);
-        showToast('Đã thêm vào danh sách yêu thích!');
-    }
-    updateFavoriteIcons();
-}
-
-// Update favorite icons
-function updateFavoriteIcons() {
-    document.querySelectorAll('.favorite-btn').forEach(btn => {
-        const productId = parseInt(btn.getAttribute('data-id'));
-        const icon = btn.querySelector('i');
-        if (favorites.includes(productId)) {
-            icon.className = 'fas fa-heart';
-            btn.classList.add('active');
+    fetch('controllers/favorite_controller.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `action=toggle&product_id=${id}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const btn = document.querySelector(`.favorite-btn[data-id="${id}"]`);
+            const icon = btn.querySelector('i');
+            if (data.action === 'added') {
+                icon.classList.remove('far');
+                icon.classList.add('fas');
+                btn.classList.add('active');
+                showToast('Đã thêm vào danh sách yêu thích!');
+            } else {
+                icon.classList.remove('fas');
+                icon.classList.add('far');
+                btn.classList.remove('active');
+                showToast('Đã xóa khỏi danh sách yêu thích!');
+            }
         } else {
-            icon.className = 'far fa-heart';
-            btn.classList.remove('active');
+            showToast('Có lỗi xảy ra!', 'warning');
         }
     });
 }
 
 // Add to cart
 function addToCart(id) {
-    const laptop = laptops.find(l => l.id === id);
-    const existingItem = cart.find(item => item.id === id);
-    
-    if (existingItem) {
-        existingItem.quantity += 1;
-    } else {
-        cart.push({...laptop, quantity: 1});
-    }
-    
-    updateCartCount();
-    showToast(`Đã thêm "${laptop.name}" vào giỏ hàng!`);
-}
-
-// Update cart count
-function updateCartCount() {
-    const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
-    document.getElementById('cartCount').textContent = totalItems;
-}
-
-// Show cart (placeholder)
-function showCart() {
-    if (cart.length === 0) {
-        alert('Giỏ hàng của bạn đang trống!');
-        return;
-    }
-    
-    let cartContent = 'Giỏ hàng của bạn:\n\n';
-    let total = 0;
-    
-    cart.forEach(item => {
-        cartContent += `${item.name} - Số lượng: ${item.quantity} - ${formatPrice(item.price)}\n`;
-        total += item.price * item.quantity;
+    fetch('controllers/cart_controller.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `action=add&product_id=${id}&quantity=1`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('cartCount').textContent = data.count;
+            const laptop = laptops.find(l => l.id === id);
+            showToast(`Đã thêm "${laptop.name}" vào giỏ hàng!`);
+        } else {
+            showToast('Không thể thêm vào giỏ hàng!', 'warning');
+        }
     });
-    
-    cartContent += `\nTổng cộng: ${formatPrice(total)}`;
-    alert(cartContent);
 }
 
 // Render products
@@ -267,11 +257,11 @@ function renderProducts(products) {
     products.forEach(laptop => {
         const badgeClass = laptop.badge === 'new' ? 'new' : laptop.badge === 'sale' ? 'sale' : 'hot';
         const badgeText = laptop.badge === 'new' ? 'MỚI' : laptop.badge === 'sale' ? 'GIẢM GIÁ' : 'HOT';
-        const isFavorite = favorites.includes(laptop.id);
+        const isFavorite = favoriteIds.includes(laptop.id);
         
         const productHTML = `
-            <div class="col-lg-3 col-md-6">
-                <div class="product-card">
+            <div class="col-lg-3 col-md-6 mb-4">
+                <div class="product-card position-relative">
                     <div class="position-relative">
                         <img src="${laptop.image}" alt="${laptop.name}" class="product-image">
                         <span class="product-badge ${badgeClass}">${badgeText}</span>
@@ -280,19 +270,19 @@ function renderProducts(products) {
                         </button>
                     </div>
                     <div class="p-3">
-                        <h6 class="mb-2">${laptop.name}</h6>
-                        <p class="text-muted small mb-2">${laptop.description}</p>
+                        <h6 class="mb-2 text-truncate">${laptop.name}</h6>
+                        <p class="text-muted small mb-2">${laptop.brand} | ${laptop.type}</p>
                         <div class="price mb-3">
-                            ${laptop.originalPrice ? `<span class="old-price">${formatPrice(laptop.originalPrice)}</span>` : ''}
-                            ${formatPrice(laptop.price)}
+                            <span class="current-price">${formatPrice(laptop.price)}</span>
+                            ${laptop.originalPrice ? `<span class="original-price">${formatPrice(laptop.originalPrice)}</span>` : ''}
                         </div>
-                        <div class="product-actions">
-                            <button class="btn btn-custom flex-fill me-2" onclick="window.location.href='?option=chitietsanpham&id=${laptop.id}'">
-                                <i class="fas fa-eye"></i> Chi tiết
+                        <div class="product-actions d-flex gap-2">
+                            <button class="btn btn-custom flex-fill" onclick="addToCart(${laptop.id})">
+                                <i class="fas fa-cart-plus me-1"></i>Thêm vào giỏ
                             </button>
-                            <button class="btn btn-success flex-fill" onclick="addToCart(${laptop.id})">
-                                <i class="fas fa-shopping-cart"></i> Thêm
-                            </button>
+                            <a href="?option=chitietsanpham&id=${laptop.id}" class="btn btn-outline-secondary">
+                                <i class="fas fa-eye"></i>
+                            </a>
                         </div>
                     </div>
                 </div>
@@ -300,119 +290,68 @@ function renderProducts(products) {
         `;
         container.innerHTML += productHTML;
     });
-}
 
-// Search functionality with autocomplete
-function setupSearch() {
-    const searchInput = document.getElementById('searchInput');
-    const suggestions = document.getElementById('autocompleteSuggestions');
-
-    searchInput.addEventListener('input', function() {
-        const query = this.value.toLowerCase();
-        
-        if (query.length < 2) {
-            suggestions.style.display = 'none';
-            return;
-        }
-
-        const matches = laptops.filter(laptop => 
-            laptop.name.toLowerCase().includes(query) ||
-            laptop.brand.toLowerCase().includes(query) ||
-            laptop.type.toLowerCase().includes(query)
-        );
-
-        if (matches.length > 0) {
-            suggestions.innerHTML = matches.slice(0, 5).map(laptop => 
-                `<div class="autocomplete-suggestion" onclick="selectSuggestion('${laptop.name}')">${laptop.name}</div>`
-            ).join('');
-            suggestions.style.display = 'block';
-        } else {
-            suggestions.style.display = 'none';
-        }
-    });
-
-    document.addEventListener('click', function(e) {
-        if (!searchInput.contains(e.target) && !suggestions.contains(e.target)) {
-            suggestions.style.display = 'none';
-        }
+    // Hiệu ứng hiển thị
+    document.querySelectorAll('.product-card').forEach((card, index) => {
+        setTimeout(() => {
+            card.classList.add('fade-in');
+        }, index * 100);
     });
 }
 
-function selectSuggestion(name) {
-    document.getElementById('searchInput').value = name;
-    document.getElementById('autocompleteSuggestions').style.display = 'none';
-    performSearch();
-}
-
-function performSearch() {
-    const query = document.getElementById('searchInput').value.toLowerCase();
-    if (!query) {
-        filteredLaptops = [...laptops];
-    } else {
-        filteredLaptops = laptops.filter(laptop => 
-            laptop.name.toLowerCase().includes(query) ||
-            laptop.brand.toLowerCase().includes(query) ||
-            laptop.type.toLowerCase().includes(query)
-        );
-    }
-    renderProducts(filteredLaptops);
-}
-
-// Filter functions
-function filterByBrand(brand) {
-    document.getElementById('brandFilter').value = brand;
-    filterProducts();
-}
-
+// Filter products
 function filterProducts() {
     const brandFilter = document.getElementById('brandFilter').value;
     const typeFilter = document.getElementById('typeFilter').value;
 
     filteredLaptops = laptops.filter(laptop => {
-        const brandMatch = !brandFilter || laptop.brand === brandFilter;
-        const typeMatch = !typeFilter || laptop.type === typeFilter;
-        return brandMatch && typeMatch;
+        const matchBrand = !brandFilter || laptop.brand === brandFilter;
+        const matchType = !typeFilter || laptop.type === typeFilter;
+        return matchBrand && matchType;
     });
 
-    renderProducts(filteredLaptops);
+    sortProducts();
 }
 
+// Sort products
 function sortProducts() {
-    const sortValue = document.getElementById('priceSort').value;
-    
-    if (sortValue === 'low-high') {
+    const sortOption = document.getElementById('priceSort').value;
+
+    if (sortOption === 'low-high') {
         filteredLaptops.sort((a, b) => a.price - b.price);
-    } else if (sortValue === 'high-low') {
+    } else if (sortOption === 'high-low') {
         filteredLaptops.sort((a, b) => b.price - a.price);
     }
 
     renderProducts(filteredLaptops);
 }
 
+// Clear filters
 function clearFilters() {
+    document.getElementById('priceSort').value = '';
     document.getElementById('brandFilter').value = '';
     document.getElementById('typeFilter').value = '';
-    document.getElementById('priceSort').value = '';
-    document.getElementById('searchInput').value = '';
     filteredLaptops = [...laptops];
     renderProducts(filteredLaptops);
 }
 
-function viewProduct(id) {
-    const laptop = laptops.find(l => l.id === id);
-    alert(`Xem chi tiết: ${laptop.name}\nGiá: ${formatPrice(laptop.price)}\n${laptop.description}`);
+// Filter by brand from category card
+function filterByBrand(brand) {
+    document.getElementById('brandFilter').value = brand;
+    filterProducts();
 }
 
-// Initialize the page
+// Load products on page load
 document.addEventListener('DOMContentLoaded', function() {
-    // Show bestsellers first
-    const bestsellers = laptops.filter(laptop => laptop.bestseller);
-    renderProducts(bestsellers);
-    setupSearch();
-});
+    renderProducts(filteredLaptops);
 
-// Show all products after 3 seconds
-setTimeout(() => {
-    renderProducts(laptops);
-}, 3000);
+    // Load số lượng giỏ hàng
+    fetch('controllers/cart_controller.php?action=get_count')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('cartCount').textContent = data.count;
+            }
+        });
+});
 </script>

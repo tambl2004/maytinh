@@ -1,3 +1,51 @@
+<?php
+require_once 'config/connect.php';
+session_start();
+
+$error_message = '';
+$success_message = '';
+
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $Email = $_POST['email'];
+    $User = $_POST['tendangnhap'];
+    $Pass = $_POST['matkhau'];
+    $confirm_password = $_POST['confirm_password'];
+
+    // Kiểm tra đầu vào của người dùng
+    if (empty($Email) || empty($User) || empty($Pass) || empty($confirm_password)) {
+        $error_message = "Tất cả các trường đều bắt buộc!";
+    } elseif (!filter_var($Email, FILTER_VALIDATE_EMAIL)) {
+        $error_message = "Địa chỉ email không đúng định dạng!";
+    } elseif (strlen($Pass) < 6) {
+        $error_message = "Mật khẩu phải có ít nhất 6 ký tự!";
+    } elseif ($Pass !== $confirm_password) {
+        $error_message = "Mật khẩu xác nhận không khớp!";
+    } else {
+        // Kiểm tra xem tên đăng nhập hoặc email đã tồn tại chưa
+        $sql = "SELECT * FROM nguoidung WHERE tendangnhap = ? OR email = ?";
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param('ss', $User, $Email);
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        if ($result->num_rows > 0) {
+            $error_message = "Tên đăng nhập hoặc email đã tồn tại!";
+        } else {
+            // Thêm người dùng mới vào cơ sở dữ liệu
+            $sql = "INSERT INTO nguoidung (tendangnhap, matkhau, email, Chucvu) VALUES (?, ?, ?, 'khachhang')";
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param('sss', $User, $Pass, $Email);
+            if ($stmt->execute()) {
+                $success_message = "Đăng ký thành công! Bạn có thể đăng nhập ngay bây giờ.";
+            } else {
+                $error_message = "Có lỗi xảy ra. Vui lòng thử lại.";
+            }
+        }
+    }
+}
+
+$conn->close();
+?>
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -66,18 +114,30 @@
 <body>
     <div class="register-container">
         <h2>Đăng Ký</h2>
-        <form action="register_process.php" method="POST">
+        
+        <!-- Thêm phần thông báo -->
+        <?php if (!empty($error_message)): ?>
+            <div class="alert alert-danger" role="alert">
+                <?php echo $error_message; ?>
+            </div>
+        <?php elseif (!empty($success_message)): ?>
+            <div class="alert alert-success" role="alert">
+                <?php echo $success_message; ?>
+            </div>
+        <?php endif; ?>
+
+        <form method="POST">
             <div class="mb-3">
-                <label for="username" class="form-label">Tên đăng nhập</label>
-                <input type="text" class="form-control" id="username" name="username" placeholder="Nhập tên đăng nhập" required>
+                <label for="tendangnhap" class="form-label">Tên đăng nhập</label>
+                <input type="text" class="form-control" id="tendangnhap" name="tendangnhap" placeholder="Nhập tên đăng nhập" required>
             </div>
             <div class="mb-3">
                 <label for="email" class="form-label">Email</label>
                 <input type="email" class="form-control" id="email" name="email" placeholder="Nhập email" required>
             </div>
             <div class="mb-3">
-                <label for="password" class="form-label">Mật khẩu</label>
-                <input type="password" class="form-control" id="password" name="password" placeholder="Nhập mật khẩu" required>
+                <label for="matkhau" class="form-label">Mật khẩu</label>
+                <input type="password" class="form-control" id="matkhau" name="matkhau" placeholder="Nhập mật khẩu" required>
             </div>
             <div class="mb-3">
                 <label for="confirm_password" class="form-label">Xác nhận mật khẩu</label>
@@ -95,9 +155,9 @@
     <!-- Client-side validation -->
     <script>
         document.querySelector('form').addEventListener('submit', function (e) {
-            const password = document.getElementById('password').value;
+            const matkhau = document.getElementById('matkhau').value;
             const confirmPassword = document.getElementById('confirm_password').value;
-            if (password !== confirmPassword) {
+            if (matkhau !== confirmPassword) {
                 e.preventDefault();
                 alert('Mật khẩu và xác nhận mật khẩu không khớp!');
             }

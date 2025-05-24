@@ -1,3 +1,50 @@
+<?php
+session_start();
+require_once 'config/connect.php';
+
+$error_message = ''; // Khởi tạo biến thông báo lỗi
+
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $User = $_POST['tendangnhap'];
+    $Pass = $_POST['matkhau'];
+
+    // Kiểm tra đầu vào của người dùng
+    if (empty($User) || empty($Pass)) {
+        $error_message = "Tên đăng nhập và mật khẩu không được để trống!";
+    } else {
+        // Truy vấn cơ sở dữ liệu để lấy thông tin người dùng
+        $sql = "SELECT * FROM nguoidung WHERE tendangnhap = ?";
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param('s', $User);
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        if ($result->num_rows > 0) {
+            $user = $result->fetch_assoc();
+
+            // Kiểm tra mật khẩu
+            if ($Pass == $user['matkhau']) {
+                // Lưu thông tin vào session
+                $_SESSION['id'] = $user['id'];
+                $_SESSION['Chucvu'] = $user['Chucvu']; // Đảm bảo vai trò được lưu vào session
+                if ($user['Chucvu'] == 'admin') {
+                    header("Location: admin.php");
+                    exit();
+                } else {
+                    header("Location: website/giaodien.php");
+                    exit();
+                }
+            } else {
+                $error_message = "Tên đăng nhập hoặc mật khẩu không chính xác!";
+            }
+        } else {
+            $error_message = "Tên đăng nhập hoặc mật khẩu không chính xác!";
+        }
+    }
+}
+
+$conn->close();
+?>
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -92,14 +139,22 @@
 <body>
     <div class="login-container">
         <h2>Đăng Nhập</h2>
-        <form action="login_process.php" method="POST">
+        
+        <!-- Thêm phần thông báo lỗi -->
+        <?php if (!empty($error_message)): ?>
+            <div class="alert alert-danger" role="alert">
+                <?php echo $error_message; ?>
+            </div>
+        <?php endif; ?>
+
+        <form method="POST">
             <div class="mb-3">
                 <label for="username" class="form-label">Tên đăng nhập</label>
-                <input type="text" class="form-control" id="username" name="username" placeholder="Nhập tên đăng nhập" required>
+                <input type="text" class="form-control" id="username" name="tendangnhap" placeholder="Nhập tên đăng nhập" required>
             </div>
             <div class="mb-3">
                 <label for="password" class="form-label">Mật khẩu</label>
-                <input type="password" class="form-control" id="password" name="password" placeholder="Nhập mật khẩu" required>
+                <input type="password" class="form-control" id="password" name="matkhau" placeholder="Nhập mật khẩu" required>
             </div>
             <button type="submit" class="btn btn-primary w-100">Đăng Nhập</button>
         </form>

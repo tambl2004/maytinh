@@ -1,5 +1,7 @@
 <?php
 
+$userId = $_SESSION['id'];
+
 // Lấy danh sách sản phẩm từ database
 $query = "SELECT s.*, t.ten as thuonghieu, d.ten as danhmuc, 
           JSON_UNQUOTE(JSON_EXTRACT(s.thongso, '$.cpu')) as cpu,
@@ -33,6 +35,18 @@ while ($row = mysqli_fetch_assoc($result)) {
         'is_new' => (strtotime($row['ngaytao']) > strtotime('-30 days'))
     ];
 }
+
+// Lấy danh sách yêu thích của người dùng
+$favoriteIds = [];
+$sqlFavorites = "SELECT sanpham_id FROM yeuthich WHERE nguoidung_id = ?";
+$stmtFavorites = $conn->prepare($sqlFavorites);
+$stmtFavorites->bind_param("i", $userId);
+$stmtFavorites->execute();
+$resultFavorites = $stmtFavorites->get_result();
+while ($row = $resultFavorites->fetch_assoc()) {
+    $favoriteIds[] = $row['sanpham_id'];
+}
+$stmtFavorites->close();
 
 // Lấy danh sách thương hiệu
 $brand_query = "SELECT ten FROM thuonghieu";
@@ -299,8 +313,9 @@ $current_products = array_slice($filtered_products, $offset, $products_per_page)
                                     </div>
                                 <?php endif; ?>
                                 
-                                <button class="favorite-btn" onclick="toggleFavorite(<?= $product['id'] ?>)">
-                                    <i class="far fa-heart"></i>
+                                <button class="favorite-btn <?= in_array($product['id'], $favoriteIds) ? 'active' : '' ?>" 
+                                        onclick="toggleFavorite(<?= $product['id'] ?>)">
+                                    <i class="<?= in_array($product['id'], $favoriteIds) ? 'fas' : 'far' ?> fa-heart"></i>
                                 </button>
                                 
                                 <div class="position-relative overflow-hidden">
@@ -443,82 +458,76 @@ function toggleFavorite(productId) {
     const btn = event.target.closest('.favorite-btn');
     const icon = btn.querySelector('i');
     
-    if (icon.classList.contains('far')) {
-        icon.classList.remove('far');
-        icon.classList.add('fas');
-        btn.classList.add('active');
-        showToast('Đã thêm vào danh sách yêu thích!');
-        
-        // Gửi yêu cầu AJAX để lưu vào database
-        fetch('../ajax/save_favorite.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ product_id: productId })
-        });
-    } else {
-        icon.classList.remove('fas');
-        icon.classList.add('far');
-        btn.classList.remove('active');
-        showToast('Đã xóa khỏi danh sách yêu thích!');
-        
-        // Gửi yêu cầu AJAX để xóa khỏi database
-        fetch('../ajax/remove_favorite.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ product_id: productId })
-        });
-    }
+    fetch('controllers/favorite_controller.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `action=toggle&product_id=${productId}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            if (data.action === 'added') {
+                icon.classList.remove('far');
+                icon.classList.add('fas');
+                btn.classList.add('active');
+                showToast('Đã thêm vào danh sách yêu thích!');
+            } else {
+                icon.classList.remove('fas');
+                icon.classList.add('far');
+                btn.classList.remove('active');
+                showToast('Đã xóa khỏi danh sách yêu thích!');
+            }
+        } else {
+            showToast('Có lỗi xảy ra!', 'warning');
+        }
+    });
 }
 
 // Thêm vào giỏ hàng
 function addToCart(productId) {
-    // Lấy số lượng hiện tại từ badge
-    let currentCount = parseInt(document.getElementById('cartCount').textContent) || 0;
-    
-    // Cập nhật số lượng
-    currentCount++;
-    document.getElementById('cartCount').textContent = currentCount;
-    
-    // Hiển thị toast
-    showToast('Sản phẩm đã được thêm vào giỏ hàng!');
-    
-    // Gửi yêu cầu AJAX để lưu vào giỏ hàng
-    fetch('../ajax/add_to_cart.php', {
+    fetch('controllers/cart_controller.php', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ product_id: productId, quantity: 1 })
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `action=add&product_id=${productId}&quantity=1`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('cartCount').textContent = data.count;
+            showToast('Sản phẩm đã được thêm vào giỏ hàng!');
+        } else {
+            showToast('Không thể thêm vào giỏ hàng!', 'warning');
+        }
     });
 }
 
 // Hiển thị toast notification
-function showToast(message) {
-    document.getElementById('toastMessage').textContent = message;
-    const toast = new bootstrap.Toast(document.getElementById('successToast'));
+function showToast(message, type = 'success') {
+    const toastElement = document.getElementById('successToast');
+    const toastMessage = document.getElementById('toastMessage');
+    toastMessage.textContent = message;
+    
+    const toastIcon = toastElement.querySelector('.toast-header i');
+    if (type === 'warning') {
+        toastIcon.className = 'fas fa-exclamation-triangle text-warning me-2';
+        toastElement.querySelector('.toast-header strong').textContent = 'Thông báo';
+    } else {
+        toastIcon.className = 'fas fa-check-circle text-success me-2';
+        toastElement.querySelector('.toast-header strong').textContent = 'Thành công';
+    }
+    
+    const toast = new bootstrap.Toast(toastElement);
     toast.show();
 }
 
-// Load số lượng giỏ hàng và danh sách yêu thích khi trang được tải
+// Load số lượng giỏ hàng khi trang được tải
 document.addEventListener('DOMContentLoaded', function() {
-    // Load giỏ hàng
-    fetch('../ajax/get_cart_count.php')
+    fetch('controllers/cart_controller.php?action=get_count')
         .then(response => response.json())
         .then(data => {
-            document.getElementById('cartCount').textContent = data.count;
-        });
-
-    // Load danh sách yêu thích
-    fetch('../ajax/get_favorites.php')
-        .then(response => response.json())
-        .then(data => {
-            data.forEach(productId => {
-                const btn = document.querySelector(`.favorite-btn[onclick="toggleFavorite(${productId})"]`);
-                if (btn) {
-                    const icon = btn.querySelector('i');
-                    icon.classList.remove('far');
-                    icon.classList.add('fas');
-                    btn.classList.add('active');
-                }
-            });
+            if (data.success) {
+                document.getElementById('cartCount').textContent = data.count;
+            }
         });
 });
 
