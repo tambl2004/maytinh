@@ -1,5 +1,6 @@
 <?php
-
+session_start();
+include '../config/connect.php';
 $option = isset($_GET['option']) ? $_GET['option'] : 'home';  
 ?>
 <!DOCTYPE html>

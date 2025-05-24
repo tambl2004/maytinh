@@ -1,91 +1,27 @@
 <?php
-// Giả lập dữ liệu sản phẩm yêu thích - trong thực tế sẽ lấy từ database
-$favoriteProducts = [
-    [
-        'id' => 1,
-        'name' => 'Dell XPS 13 Plus',
-        'price' => 32990000,
-        'old_price' => 35990000,
-        'image' => 'https://images.unsplash.com/photo-1588872657578-7efd1f1555ed?w=400&h=250&fit=crop',
-        'rating' => 4.8,
-        'reviews' => 124,
-        'badge' => 'sale',
-        'discount' => 8,
-        'brand' => 'Dell',
-        'category' => 'Ultrabook'
-    ],
-    [
-        'id' => 2,
-        'name' => 'MacBook Air M2',
-        'price' => 28990000,
-        'old_price' => null,
-        'image' => 'https://images.unsplash.com/photo-1541807084-5c52b6b3adef?w=400&h=250&fit=crop',
-        'rating' => 4.9,
-        'reviews' => 89,
-        'badge' => 'new',
-        'discount' => 0,
-        'brand' => 'Apple',
-        'category' => 'Ultrabook'
-    ],
-    [
-        'id' => 3,
-        'name' => 'HP Pavilion Gaming 15',
-        'price' => 18990000,
-        'old_price' => 21990000,
-        'image' => 'https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=400&h=250&fit=crop',
-        'rating' => 4.5,
-        'reviews' => 156,
-        'badge' => 'sale',
-        'discount' => 14,
-        'brand' => 'HP',
-        'category' => 'Gaming'
-    ],
-    [
-        'id' => 4,
-        'name' => 'Lenovo ThinkPad X1 Carbon',
-        'price' => 42990000,
-        'old_price' => null,
-        'image' => 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=400&h=250&fit=crop',
-        'rating' => 4.7,
-        'reviews' => 78,
-        'badge' => null,
-        'discount' => 0,
-        'brand' => 'Lenovo',
-        'category' => 'Business'
-    ],
-    [
-        'id' => 5,
-        'name' => 'ASUS ROG Strix G15',
-        'price' => 25990000,
-        'old_price' => 27990000,
-        'image' => 'https://images.unsplash.com/photo-1593642702821-c8da6771f0c6?w=400&h=250&fit=crop',
-        'rating' => 4.6,
-        'reviews' => 203,
-        'badge' => 'sale',
-        'discount' => 7,
-        'brand' => 'ASUS',
-        'category' => 'Gaming'
-    ],
-    [
-        'id' => 6,
-        'name' => 'Acer Swift 3',
-        'price' => 15990000,
-        'old_price' => null,
-        'image' => 'https://images.unsplash.com/photo-1541807084-5c52b6b3adef?w=400&h=250&fit=crop',
-        'rating' => 4.3,
-        'reviews' => 92,
-        'badge' => 'new',
-        'discount' => 0,
-        'brand' => 'Acer',
-        'category' => 'Ultrabook'
-    ]
-];
+
+// Lấy danh sách sản phẩm yêu thích của người dùng
+$user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : 0;
+$sql = "SELECT s.id, s.ten, s.gia, s.giacu, s.hinhanh, s.thuonghieu_id, s.danhmuc_id, s.ngaytao, t.ten AS brand, d.ten AS category,
+        (SELECT AVG(diemso) FROM danhgia WHERE sanpham_id = s.id) AS rating,
+        (SELECT COUNT(*) FROM danhgia WHERE sanpham_id = s.id) AS reviews
+        FROM yeuthich y
+        JOIN sanpham s ON y.sanpham_id = s.id
+        JOIN thuonghieu t ON s.thuonghieu_id = t.id
+        JOIN danhmuc d ON s.danhmuc_id = d.id
+        WHERE y.nguoidung_id = ?";
+$stmt = $conn->prepare($sql);
+$stmt->bind_param("i", $user_id);
+$stmt->execute();
+$result = $stmt->get_result();
+$favoriteProducts = $result->fetch_all(MYSQLI_ASSOC);
 
 function formatPrice($price) {
     return number_format($price, 0, ',', '.') . '₫';
 }
 
 function renderStars($rating) {
+    $rating = $rating ?: 0;
     $fullStars = floor($rating);
     $halfStar = ($rating - $fullStars) >= 0.5;
     $emptyStars = 5 - $fullStars - ($halfStar ? 1 : 0);
@@ -148,18 +84,21 @@ function renderStars($rating) {
                             <span class="fw-bold me-3">Lọc theo:</span>
                             <select class="form-select form-select-sm me-3" style="width: auto;" id="brandFilter">
                                 <option value="">Tất cả thương hiệu</option>
-                                <option value="Dell">Dell</option>
-                                <option value="Apple">Apple</option>
-                                <option value="HP">HP</option>
-                                <option value="Lenovo">Lenovo</option>
-                                <option value="ASUS">ASUS</option>
-                                <option value="Acer">Acer</option>
+                                <?php
+                                $brands = $conn->query("SELECT ten FROM thuonghieu");
+                                while ($brand = $brands->fetch_assoc()) {
+                                    echo "<option value='{$brand['ten']}'>{$brand['ten']}</option>";
+                                }
+                                ?>
                             </select>
                             <select class="form-select form-select-sm" style="width: auto;" id="categoryFilter">
                                 <option value="">Tất cả danh mục</option>
-                                <option value="Gaming">Gaming</option>
-                                <option value="Ultrabook">Ultrabook</option>
-                                <option value="Business">Business</option>
+                                <?php
+                                $categories = $conn->query("SELECT ten FROM danhmuc");
+                                while ($category = $categories->fetch_assoc()) {
+                                    echo "<option value='{$category['ten']}'>{$category['ten']}</option>";
+                                }
+                                ?>
                             </select>
                         </div>
                     </div>
@@ -191,19 +130,17 @@ function renderStars($rating) {
                     <div class="col-lg-4 col-md-6 mb-4 product-item" 
                          data-brand="<?php echo $product['brand']; ?>" 
                          data-category="<?php echo $product['category']; ?>"
-                         data-price="<?php echo $product['price']; ?>"
-                         data-rating="<?php echo $product['rating']; ?>"
-                         data-name="<?php echo $product['name']; ?>">
+                         data-price="<?php echo $product['gia']; ?>"
+                         data-rating="<?php echo $product['rating'] ?: 0; ?>"
+                         data-name="<?php echo $product['ten']; ?>">
                         <div class="product-card position-relative">
                             <!-- Product Badge -->
-                            <?php if ($product['badge']): ?>
-                                <div class="product-badge <?php echo $product['badge']; ?>">
-                                    <?php if ($product['badge'] == 'sale'): ?>
-                                        -<?php echo $product['discount']; ?>%
-                                    <?php elseif ($product['badge'] == 'new'): ?>
-                                        Mới
-                                    <?php endif; ?>
+                            <?php if ($product['giacu'] && $product['gia'] < $product['giacu']): ?>
+                                <div class="product-badge sale">
+                                    -<?php echo round(($product['giacu'] - $product['gia']) / $product['giacu'] * 100); ?>%
                                 </div>
+                            <?php elseif (isset($product['ngaytao']) && strtotime($product['ngaytao']) > strtotime('-30 days')): ?>
+                                <div class="product-badge new">Mới</div>
                             <?php endif; ?>
 
                             <!-- Favorite Button -->
@@ -213,7 +150,7 @@ function renderStars($rating) {
 
                             <!-- Product Image -->
                             <div class="position-relative overflow-hidden">
-                                <img src="<?php echo $product['image']; ?>" alt="<?php echo $product['name']; ?>" class="product-image">
+                                <img src="<?php echo $product['hinhanh']; ?>" alt="<?php echo $product['ten']; ?>" class="product-image">
                             </div>
 
                             <!-- Product Info -->
@@ -226,7 +163,7 @@ function renderStars($rating) {
                                 <h5 class="mb-2">
                                     <a href="?option=chitietsanpham&id=<?php echo $product['id']; ?>" 
                                        class="text-decoration-none text-dark">
-                                        <?php echo $product['name']; ?>
+                                        <?php echo $product['ten']; ?>
                                     </a>
                                 </h5>
 
@@ -240,9 +177,9 @@ function renderStars($rating) {
 
                                 <!-- Price -->
                                 <div class="price-section mb-3">
-                                    <span class="price"><?php echo formatPrice($product['price']); ?></span>
-                                    <?php if ($product['old_price']): ?>
-                                        <span class="old-price"><?php echo formatPrice($product['old_price']); ?></span>
+                                    <span class="price"><?php echo formatPrice($product['gia']); ?></span>
+                                    <?php if ($product['giacu']): ?>
+                                        <span class="old-price"><?php echo formatPrice($product['giacu']); ?></span>
                                     <?php endif; ?>
                                 </div>
 
@@ -303,12 +240,10 @@ function filterProducts() {
         const matchBrand = !brandFilter || brand === brandFilter;
         const matchCategory = !categoryFilter || category === categoryFilter;
         
-        if (matchBrand && matchCategory) {
-            product.style.display = 'block';
-        } else {
-            product.style.display = 'none';
-        }
+        product.style.display = matchBrand && matchCategory ? 'block' : 'none';
     });
+
+    updateFavoriteCount();
 }
 
 function sortProducts() {
@@ -336,55 +271,90 @@ function sortProducts() {
 
 // Product Actions
 function toggleFavorite(productId, button) {
-    if (button.classList.contains('active')) {
-        // Remove from favorites
-        button.classList.remove('active');
-        button.closest('.product-item').style.display = 'none';
-        
-        // Show toast notification
-        showToast('Đã xóa khỏi danh sách yêu thích!', 'warning');
-        
-        // Simulate removal with fade effect
-        setTimeout(() => {
-            button.closest('.product-item').remove();
-            updateFavoriteCount();
-        }, 300);
-    }
+    fetch('controllers/favorite_controller.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `action=remove&product_id=${productId}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            button.classList.remove('active');
+            button.closest('.product-item').style.display = 'none';
+            showToast('Đã xóa khỏi danh sách yêu thích!', 'warning');
+            setTimeout(() => {
+                button.closest('.product-item').remove();
+                updateFavoriteCount();
+                if (document.querySelectorAll('.product-item').length === 0) {
+                    document.getElementById('productsGrid').innerHTML = `
+                        <div class="col-12 text-center py-5">
+                            <i class="fas fa-heart-broken text-muted" style="font-size: 4rem; margin-bottom: 20px;"></i>
+                            <h3 class="text-muted mb-3">Chưa có sản phẩm yêu thích</h3>
+                            <p class="text-muted mb-4">Hãy khám phá và thêm những sản phẩm bạn yêu thích vào danh sách này</p>
+                            <a href="?option=sanpham" class="btn btn-custom btn-lg">
+                                <i class="fas fa-shopping-bag me-2"></i>
+                                Khám phá sản phẩm
+                            </a>
+                        </div>
+                    `;
+                }
+            }, 300);
+        } else {
+            showToast('Không thể xóa sản phẩm yêu thích!', 'warning');
+        }
+    });
 }
 
 function addToCart(productId) {
-    // Simulate adding to cart
-    showToast('Đã thêm sản phẩm vào giỏ hàng!', 'success');
-    
-    // Update cart count
-    const cartCount = document.getElementById('cartCount');
-    const currentCount = parseInt(cartCount.textContent);
-    cartCount.textContent = currentCount + 1;
+    fetch('controllers/cart_controller.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `action=add&product_id=${productId}&quantity=1`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Đã thêm sản phẩm vào giỏ hàng!', 'success');
+            updateCartCount();
+        } else {
+            showToast('Không thể thêm vào giỏ hàng!', 'warning');
+        }
+    });
 }
 
 function clearAllFavorites() {
     if (confirm('Bạn có chắc chắn muốn xóa tất cả sản phẩm yêu thích?')) {
-        const products = document.querySelectorAll('.product-item');
-        products.forEach(product => {
-            product.style.opacity = '0';
-            product.style.transform = 'translateY(-20px)';
+        fetch('controllers/favorite_controller.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'action=clear'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const products = document.querySelectorAll('.product-item');
+                products.forEach(product => {
+                    product.style.opacity = '0';
+                    product.style.transform = 'translateY(-20px)';
+                });
+                setTimeout(() => {
+                    document.getElementById('productsGrid').innerHTML = `
+                        <div class="col-12 text-center py-5">
+                            <i class="fas fa-heart-broken text-muted" style="font-size: 4rem; margin-bottom: 20px;"></i>
+                            <h3 class="text-muted mb-3">Đã xóa tất cả sản phẩm yêu thích</h3>
+                            <p class="text-muted mb-4">Hãy khám phá và thêm những sản phẩm bạn yêu thích vào danh sách này</p>
+                            <a href="?option=sanpham" class="btn btn-custom btn-lg">
+                                <i class="fas fa-shopping-bag me-2"></i>
+                                Khám phá sản phẩm
+                            </a>
+                        </div>
+                    `;
+                }, 300);
+                showToast('Đã xóa tất cả sản phẩm yêu thích!', 'warning');
+            } else {
+                showToast('Không thể xóa danh sách yêu thích!', 'warning');
+            }
         });
-        
-        setTimeout(() => {
-            document.getElementById('productsGrid').innerHTML = `
-                <div class="col-12 text-center py-5">
-                    <i class="fas fa-heart-broken text-muted" style="font-size: 4rem; margin-bottom: 20px;"></i>
-                    <h3 class="text-muted mb-3">Đã xóa tất cả sản phẩm yêu thích</h3>
-                    <p class="text-muted mb-4">Hãy khám phá và thêm những sản phẩm bạn yêu thích vào danh sách này</p>
-                    <a href="?option=sanpham" class="btn btn-custom btn-lg">
-                        <i class="fas fa-shopping-bag me-2"></i>
-                        Khám phá sản phẩm
-                    </a>
-                </div>
-            `;
-        }, 300);
-        
-        showToast('Đã xóa tất cả sản phẩm yêu thích!', 'warning');
     }
 }
 
@@ -393,12 +363,20 @@ function addAllToCart() {
     const count = visibleProducts.length;
     
     if (count > 0) {
-        showToast(`Đã thêm ${count} sản phẩm vào giỏ hàng!`, 'success');
-        
-        // Update cart count
-        const cartCount = document.getElementById('cartCount');
-        const currentCount = parseInt(cartCount.textContent);
-        cartCount.textContent = currentCount + count;
+        fetch('controllers/cart_controller.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'action=add_all_favorites'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast(`Đã thêm ${count} sản phẩm vào giỏ hàng!`, 'success');
+                updateCartCount();
+            } else {
+                showToast('Không thể thêm tất cả vào giỏ hàng!', 'warning');
+            }
+        });
     }
 }
 
@@ -410,14 +388,25 @@ function updateFavoriteCount() {
     }
 }
 
+function updateCartCount() {
+    fetch('controllers/cart_controller.php?action=get_count')
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const cartCount = document.querySelector('.badge.bg-danger');
+            if (cartCount) {
+                cartCount.textContent = data.count;
+            }
+        }
+    });
+}
+
 function showToast(message, type = 'success') {
     const toast = document.getElementById('successToast');
     const toastMessage = document.getElementById('toastMessage');
     const toastIcon = toast.querySelector('.toast-header i');
     
-    // Update message and icon based on type
     toastMessage.textContent = message;
-    
     if (type === 'warning') {
         toastIcon.className = 'fas fa-exclamation-triangle text-warning me-2';
         toast.querySelector('.toast-header strong').textContent = 'Thông báo';
@@ -430,14 +419,11 @@ function showToast(message, type = 'success') {
     bsToast.show();
 }
 
-// Initialize page
 document.addEventListener('DOMContentLoaded', function() {
-    // Add smooth animations for product cards
     const products = document.querySelectorAll('.product-item');
     products.forEach((product, index) => {
         product.style.opacity = '0';
         product.style.transform = 'translateY(20px)';
-        
         setTimeout(() => {
             product.style.transition = 'all 0.5s ease';
             product.style.opacity = '1';

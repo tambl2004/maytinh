@@ -1,3 +1,47 @@
+<?php
+
+// Giả lập giỏ hàng từ session
+$cart = isset($_SESSION['cart']) ? $_SESSION['cart'] : [];
+$cartItems = [];
+$total = 0;
+$discount = 0; // Giả lập, cần logic áp mã giảm giá
+$shipping = 50000; // Phí vận chuyển cố định
+
+if (!empty($cart)) {
+    // Lấy danh sách id sản phẩm hợp lệ
+    $ids = array_keys($cart);
+    // Chỉ giữ các id là số nguyên dương
+    $ids = array_filter($ids, function($id) {
+        return is_numeric($id) && (int)$id > 0;
+    });
+
+    if (!empty($ids)) {
+        // Chuẩn bị truy vấn với placeholders động
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $sql = "SELECT s.id, s.ten, s.gia, s.giacu, s.hinhanh, s.thongso, s.soluongton,
+                       t.ten AS brand, d.ten AS category
+                FROM sanpham s
+                JOIN thuonghieu t ON s.thuonghieu_id = t.id
+                JOIN danhmuc d ON s.danhmuc_id = d.id
+                WHERE s.id IN ($placeholders)";
+        
+        $stmt = $conn->prepare($sql);
+        // Gắn các id vào truy vấn
+        $stmt->bind_param(str_repeat('i', count($ids)), ...$ids);
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        while ($row = $result->fetch_assoc()) {
+            $row['quantity'] = $cart[$row['id']]['quantity'];
+            $row['subtotal'] = $row['gia'] * $row['quantity'];
+            $total += $row['subtotal'];
+            $cartItems[] = $row;
+        }
+        $stmt->close();
+    }
+}
+?>
+
 <!-- Breadcrumb -->
 <div class="container mt-4">
     <nav class="breadcrumb-custom" aria-label="breadcrumb">
@@ -16,161 +60,100 @@
             <div class="cart-container">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h2 class="section-title mb-0">Giỏ hàng của bạn</h2>
-                    <span class="cart-count-text">3 sản phẩm</span>
+                    <span class="cart-count-text"><?php echo count($cartItems); ?> sản phẩm</span>
                 </div>
 
-                <!-- Cart Item 1 -->
-                <div class="cart-item">
-                    <div class="row align-items-center">
-                        <div class="col-md-2 col-3">
-                            <div class="cart-item-image">
-                                <img src="https://via.placeholder.com/150x150/667eea/ffffff?text=Laptop" alt="Dell XPS 13" class="img-fluid">
-                            </div>
+                <?php if (empty($cartItems)): ?>
+                    <!-- Empty Cart State -->
+                    <div class="empty-cart-container">
+                        <div class="empty-cart-icon">
+                            <i class="fas fa-shopping-cart"></i>
                         </div>
-                        <div class="col-md-4 col-9">
-                            <div class="cart-item-info">
-                                <h5 class="cart-item-title">Dell XPS 13 Plus</h5>
-                                <p class="cart-item-specs text-muted mb-2">Intel Core i7-12700H, 16GB RAM, 512GB SSD</p>
-                                <div class="cart-item-meta">
-                                    <span class="badge bg-success me-2">Còn hàng</span>
-                                    <small class="text-muted">SKU: DX13P-001</small>
+                        <h3 class="empty-cart-title">Giỏ hàng của bạn đang trống</h3>
+                        <p class="empty-cart-text">Hãy khám phá các sản phẩm tuyệt vời của chúng tôi và thêm vào giỏ hàng!</p>
+                        <button class="btn-custom" onclick="location.href='?option=sanpham'">
+                            <i class="fas fa-laptop me-2"></i>Khám phá sản phẩm
+                        </button>
+                    </div>
+                <?php else: ?>
+                    <?php foreach ($cartItems as $index => $item): ?>
+                        <!-- Cart Item -->
+                        <div class="cart-item" data-id="<?php echo $item['id']; ?>">
+                            <div class="row align-items-center">
+                                <div class="col-md-2 col-3">
+                                    <div class="cart-item-image">
+                                        <img src="<?php echo htmlspecialchars($item['hinhanh']); ?>" alt="<?php echo htmlspecialchars($item['ten']); ?>" class="img-fluid">
+                                    </div>
+                                </div>
+                                <div class="col-md-4 col-9">
+                                    <div class="cart-item-info">
+                                        <h5 class="cart-item-title"><?php echo htmlspecialchars($item['ten']); ?></h5>
+                                        <p class="cart-item-specs text-muted mb-2">
+                                            <?php
+                                            $thongso = json_decode($item['thongso'], true);
+                                            if (is_array($thongso)) {
+                                                echo "CPU: " . htmlspecialchars($thongso['cpu'] ?? 'N/A') . ", RAM: " . htmlspecialchars($thongso['ram'] ?? 'N/A') . 
+                                                     ", Storage: " . htmlspecialchars($thongso['storage'] ?? 'N/A') . ", Screen: " . htmlspecialchars($thongso['screen'] ?? 'N/A');
+                                            } else {
+                                                echo "Thông số: N/A";
+                                            }
+                                            ?>
+                                        </p>
+                                        <div class="cart-item-meta">
+                                            <span class="badge bg-<?php echo $item['soluongton'] > 0 ? 'success' : 'danger'; ?> me-2">
+                                                <?php echo $item['soluongton'] > 0 ? 'Còn hàng' : 'Hết hàng'; ?>
+                                            </span>
+                                            <small class="text-muted">SKU: <?php echo 'SP' . str_pad($item['id'], 4, '0', STR_PAD_LEFT); ?></small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-2 col-12 mt-3 mt-md-0">
+                                    <div class="quantity-container">
+                                        <div class="quantity-selector-cart">
+                                            <button class="quantity-btn-cart" onclick="updateQuantity(<?php echo $item['id']; ?>, 'decrease')">-</button>
+                                            <input type="number" class="quantity-input-cart" value="<?php echo $item['quantity']; ?>" min="1" id="quantity-<?php echo $item['id']; ?>">
+                                            <button class="quantity-btn-cart" onclick="updateQuantity(<?php echo $item['id']; ?>, 'increase')">+</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-2 col-6 mt-3 mt-md-0">
+                                    <div class="cart-item-price">
+                                        <div class="current-price-cart"><?php echo number_format($item['gia'], 0, ',', '.') . '₫'; ?></div>
+                                        <?php if ($item['giacu']): ?>
+                                            <div class="original-price-cart"><?php echo number_format($item['giacu'], 0, ',', '.') . '₫'; ?></div>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                                <div class="col-md-2 col-6 mt-3 mt-md-0 text-end">
+                                    <div class="cart-item-actions">
+                                        <button class="btn-favorite-cart" onclick="addToWishlist(<?php echo $item['id']; ?>)" title="Yêu thích">
+                                            <i class="fas fa-heart"></i>
+                                        </button>
+                                        <button class="btn-remove-cart" onclick="removeFromCart(<?php echo $item['id']; ?>)" title="Xóa">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-2 col-12 mt-3 mt-md-0">
-                            <div class="quantity-container">
-                                <div class="quantity-selector-cart">
-                                    <button class="quantity-btn-cart" onclick="updateQuantity(1, 'decrease')">-</button>
-                                    <input type="number" class="quantity-input-cart" value="1" min="1" id="quantity-1">
-                                    <button class="quantity-btn-cart" onclick="updateQuantity(1, 'increase')">+</button>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-2 col-6 mt-3 mt-md-0">
-                            <div class="cart-item-price">
-                                <div class="current-price-cart">28.990.000₫</div>
-                                <div class="original-price-cart">32.000.000₫</div>
-                            </div>
-                        </div>
-                        <div class="col-md-2 col-6 mt-3 mt-md-0 text-end">
-                            <div class="cart-item-actions">
-                                <button class="btn-favorite-cart" onclick="addToWishlist(1)" title="Yêu thích">
-                                    <i class="fas fa-heart"></i>
+                    <?php endforeach; ?>
+
+                    <!-- Cart Actions -->
+                    <div class="cart-actions-bottom mt-4">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <button class="btn btn-outline-secondary w-100 mb-3 mb-md-0" onclick="clearCart()">
+                                    <i class="fas fa-trash me-2"></i>Xóa tất cả
                                 </button>
-                                <button class="btn-remove-cart" onclick="removeFromCart(1)" title="Xóa">
-                                    <i class="fas fa-trash"></i>
+                            </div>
+                            <div class="col-md-6">
+                                <button class="btn btn-custom w-100" onclick="updateCart()">
+                                    <i class="fas fa-sync-alt me-2"></i>Cập nhật giỏ hàng
                                 </button>
                             </div>
                         </div>
                     </div>
-                </div>
-
-                <!-- Cart Item 2 -->
-                <div class="cart-item">
-                    <div class="row align-items-center">
-                        <div class="col-md-2 col-3">
-                            <div class="cart-item-image">
-                                <img src="https://via.placeholder.com/150x150/764ba2/ffffff?text=Gaming" alt="HP Omen 15" class="img-fluid">
-                            </div>
-                        </div>
-                        <div class="col-md-4 col-9">
-                            <div class="cart-item-info">
-                                <h5 class="cart-item-title">HP Omen 15 Gaming</h5>
-                                <p class="cart-item-specs text-muted mb-2">AMD Ryzen 7 5800H, RTX 3060, 16GB RAM, 512GB SSD</p>
-                                <div class="cart-item-meta">
-                                    <span class="badge bg-warning me-2">Sắp hết hàng</span>
-                                    <small class="text-muted">SKU: HPO15-002</small>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-2 col-12 mt-3 mt-md-0">
-                            <div class="quantity-container">
-                                <div class="quantity-selector-cart">
-                                    <button class="quantity-btn-cart" onclick="updateQuantity(2, 'decrease')">-</button>
-                                    <input type="number" class="quantity-input-cart" value="2" min="1" id="quantity-2">
-                                    <button class="quantity-btn-cart" onclick="updateQuantity(2, 'increase')">+</button>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-2 col-6 mt-3 mt-md-0">
-                            <div class="cart-item-price">
-                                <div class="current-price-cart">24.500.000₫</div>
-                                <div class="original-price-cart">26.990.000₫</div>
-                            </div>
-                        </div>
-                        <div class="col-md-2 col-6 mt-3 mt-md-0 text-end">
-                            <div class="cart-item-actions">
-                                <button class="btn-favorite-cart" onclick="addToWishlist(2)" title="Yêu thích">
-                                    <i class="fas fa-heart"></i>
-                                </button>
-                                <button class="btn-remove-cart" onclick="removeFromCart(2)" title="Xóa">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Cart Item 3 -->
-                <div class="cart-item">
-                    <div class="row align-items-center">
-                        <div class="col-md-2 col-3">
-                            <div class="cart-item-image">
-                                <img src="https://via.placeholder.com/150x150/3498db/ffffff?text=MacBook" alt="MacBook Air M2" class="img-fluid">
-                            </div>
-                        </div>
-                        <div class="col-md-4 col-9">
-                            <div class="cart-item-info">
-                                <h5 class="cart-item-title">MacBook Air M2</h5>
-                                <p class="cart-item-specs text-muted mb-2">Apple M2 Chip, 8GB RAM, 256GB SSD</p>
-                                <div class="cart-item-meta">
-                                    <span class="badge bg-success me-2">Còn hàng</span>
-                                    <small class="text-muted">SKU: MBA-M2-001</small>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-2 col-12 mt-3 mt-md-0">
-                            <div class="quantity-container">
-                                <div class="quantity-selector-cart">
-                                    <button class="quantity-btn-cart" onclick="updateQuantity(3, 'decrease')">-</button>
-                                    <input type="number" class="quantity-input-cart" value="1" min="1" id="quantity-3">
-                                    <button class="quantity-btn-cart" onclick="updateQuantity(3, 'increase')">+</button>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-2 col-6 mt-3 mt-md-0">
-                            <div class="cart-item-price">
-                                <div class="current-price-cart">27.990.000₫</div>
-                            </div>
-                        </div>
-                        <div class="col-md-2 col-6 mt-3 mt-md-0 text-end">
-                            <div class="cart-item-actions">
-                                <button class="btn-favorite-cart" onclick="addToWishlist(3)" title="Yêu thích">
-                                    <i class="fas fa-heart"></i>
-                                </button>
-                                <button class="btn-remove-cart" onclick="removeFromCart(3)" title="Xóa">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Cart Actions -->
-                <div class="cart-actions-bottom mt-4">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <button class="btn btn-outline-secondary w-100 mb-3 mb-md-0" onclick="clearCart()">
-                                <i class="fas fa-trash me-2"></i>Xóa tất cả
-                            </button>
-                        </div>
-                        <div class="col-md-6">
-                            <button class="btn btn-custom w-100" onclick="updateCart()">
-                                <i class="fas fa-sync-alt me-2"></i>Cập nhật giỏ hàng
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                <?php endif; ?>
             </div>
         </div>
 
@@ -181,31 +164,33 @@
                     <h4 class="order-summary-title">Tóm tắt đơn hàng</h4>
                     
                     <div class="order-summary-item">
-                        <span>Tạm tính (4 sản phẩm)</span>
-                        <span>102.480.000₫</span>
+                        <span>Tạm tính (<?php echo count($cartItems); ?> sản phẩm)</span>
+                        <span><?php echo number_format($total, 0, ',', '.') . '₫'; ?></span>
                     </div>
                     
                     <div class="order-summary-item">
                         <span>Giảm giá</span>
-                        <span class="text-success">-3.500.000₫</span>
+                        <span class="text-success"><?php echo number_format($discount, 0, ',', '.') . '₫'; ?></span>
                     </div>
                     
                     <div class="order-summary-item">
                         <span>Phí vận chuyển</span>
-                        <span>Miễn phí</span>
+                        <span><?php echo $total > 0 ? number_format($shipping, 0, ',', '.') . '₫' : 'Miễn phí'; ?></span>
                     </div>
                     
                     <div class="order-summary-divider"></div>
                     
                     <div class="order-summary-total">
                         <span>Tổng cộng</span>
-                        <span>98.980.000₫</span>
+                        <span><?php echo number_format($total + $shipping - $discount, 0, ',', '.') . '₫'; ?></span>
                     </div>
                     
-                    <div class="savings-highlight">
-                        <i class="fas fa-tag me-2"></i>
-                        Bạn tiết kiệm được 3.500.000₫
-                    </div>
+                    <?php if ($discount > 0): ?>
+                        <div class="savings-highlight">
+                            <i class="fas fa-tag me-2"></i>
+                            Bạn tiết kiệm được <?php echo number_format($discount, 0, ',', '.') . '₫'; ?>
+                        </div>
+                    <?php endif; ?>
                     
                     <button class="btn-checkout w-100 mt-4" onclick="proceedToCheckout()">
                         <i class="fas fa-credit-card me-2"></i>Tiến hành thanh toán
@@ -252,96 +237,117 @@
     </div>
 </div>
 
-<!-- Empty Cart State (Hidden by default) -->
-<div class="container mb-5 d-none" id="emptyCartState">
-    <div class="empty-cart-container">
-        <div class="empty-cart-icon">
-            <i class="fas fa-shopping-cart"></i>
-        </div>
-        <h3 class="empty-cart-title">Giỏ hàng của bạn đang trống</h3>
-        <p class="empty-cart-text">Hãy khám phá các sản phẩm tuyệt vời của chúng tôi và thêm vào giỏ hàng!</p>
-        <button class="btn-custom" onclick="location.href='?option=sanpham'">
-            <i class="fas fa-laptop me-2"></i>Khám phá sản phẩm
-        </button>
-    </div>
-</div>
-
-
 <script>
 function updateQuantity(itemId, action) {
     const quantityInput = document.getElementById('quantity-' + itemId);
     let currentValue = parseInt(quantityInput.value);
     
     if (action === 'increase') {
-        quantityInput.value = currentValue + 1;
+        currentValue++;
     } else if (action === 'decrease' && currentValue > 1) {
-        quantityInput.value = currentValue - 1;
+        currentValue--;
     }
     
-    // Update total price (would connect to backend)
-    console.log('Updated quantity for item ' + itemId + ' to ' + quantityInput.value);
-    
-    // Show success toast
-    showToast('Đã cập nhật số lượng sản phẩm');
+    fetch('../controllers/cart_controller.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `action=update&product_id=${itemId}&quantity=${currentValue}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            quantityInput.value = currentValue;
+            showToast('Đã cập nhật số lượng sản phẩm');
+            location.reload(); // Reload để cập nhật tổng tiền
+        } else {
+            showToast('Không thể cập nhật số lượng!', 'warning');
+        }
+    });
 }
 
 function removeFromCart(itemId) {
     if (confirm('Bạn có chắc chắn muốn xóa sản phẩm này khỏi giỏ hàng?')) {
-        // Would connect to backend to remove item
-        console.log('Removing item ' + itemId + ' from cart');
-        
-        // For demo, hide the cart item
-        const cartItems = document.querySelectorAll('.cart-item');
-        if (cartItems[itemId - 1]) {
-            cartItems[itemId - 1].style.display = 'none';
-        }
-        
-        showToast('Đã xóa sản phẩm khỏi giỏ hàng');
-        
-        // Check if cart is empty and show empty state
-        const visibleItems = document.querySelectorAll('.cart-item:not([style*="display: none"])');
-        if (visibleItems.length === 0) {
-            document.querySelector('.cart-container').parentElement.parentElement.style.display = 'none';
-            document.getElementById('emptyCartState').classList.remove('d-none');
-        }
+        fetch('../controllers/cart_controller.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `action=remove&product_id=${itemId}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.querySelector(`.cart-item[data-id="${itemId}"]`).style.display = 'none';
+                showToast('Đã xóa sản phẩm khỏi giỏ hàng');
+                if (document.querySelectorAll('.cart-item:not([style*="display: none"])').length === 0) {
+                    location.reload(); // Reload để hiển thị trạng thái giỏ hàng rỗng
+                } else {
+                    location.reload(); // Reload để cập nhật tổng tiền
+                }
+            } else {
+                showToast('Không thể xóa sản phẩm!', 'warning');
+            }
+        });
     }
 }
 
 function addToWishlist(itemId) {
-    // Would connect to backend to add to wishlist
-    console.log('Adding item ' + itemId + ' to wishlist');
-    showToast('Đã thêm vào danh sách yêu thích');
-    
-    // Update button state
-    const btn = event.target.closest('.btn-favorite-cart');
-    btn.style.background = 'var(--accent-color)';
-    btn.style.color = 'white';
+    fetch('../controllers/favorite_controller.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `action=add&product_id=${itemId}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Đã thêm vào danh sách yêu thích');
+            event.target.closest('.btn-favorite-cart').style.background = 'var(--accent-color)';
+            event.target.closest('.btn-favorite-cart').style.color = 'white';
+        } else {
+            showToast('Không thể thêm vào yêu thích!', 'warning');
+        }
+    });
 }
 
 function clearCart() {
     if (confirm('Bạn có chắc chắn muốn xóa toàn bộ giỏ hàng?')) {
-        // Would connect to backend to clear cart
-        console.log('Clearing entire cart');
-        
-        document.querySelector('.cart-container').parentElement.parentElement.style.display = 'none';
-        document.getElementById('emptyCartState').classList.remove('d-none');
-        
-        showToast('Đã xóa toàn bộ giỏ hàng');
+        fetch('../controllers/cart_controller.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'action=clear'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast('Đã xóa toàn bộ giỏ hàng');
+                location.reload(); // Reload để hiển thị trạng thái giỏ hàng rỗng
+            } else {
+                showToast('Không thể xóa giỏ hàng!', 'warning');
+            }
+        });
     }
 }
 
 function updateCart() {
-    // Would connect to backend to update cart
-    console.log('Updating cart');
     showToast('Đã cập nhật giỏ hàng');
+    location.reload();
 }
 
 function applyCoupon() {
     const couponCode = document.getElementById('couponCode').value.trim();
     if (couponCode) {
-        // Would connect to backend to validate and apply coupon
-        console.log('Applying coupon: ' + couponCode);
-        showToast('Đã áp dụng mã giảm giá: ' + couponCode);
+        fetch('../controllers/coupon_controller.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `action=apply&code=${couponCode}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast('Đã áp dụng mã giảm giá: ' + couponCode);
+                location.reload();
+            } else {
+                showToast('Mã giảm giá không hợp lệ!', 'warning');
+            }
+        });
     } else {
         alert('Vui lòng nhập mã giảm giá');
     }
@@ -353,8 +359,6 @@ function setCoupon(code) {
 }
 
 function proceedToCheckout() {
-    // Would redirect to checkout page
-    console.log('Proceeding to checkout');
     showToast('Đang chuyển đến trang thanh toán...');
     location.href = '?option=thanhtoan';
 }
@@ -363,10 +367,19 @@ function continueShopping() {
     location.href = '?option=sanpham';
 }
 
-function showToast(message) {
+function showToast(message, type = 'success') {
     const toastElement = document.getElementById('successToast');
     const toastMessage = document.getElementById('toastMessage');
     toastMessage.textContent = message;
+    
+    const toastIcon = toastElement.querySelector('.toast-header i');
+    if (type === 'warning') {
+        toastIcon.className = 'fas fa-exclamation-triangle text-warning me-2';
+        toastElement.querySelector('.toast-header strong').textContent = 'Thông báo';
+    } else {
+        toastIcon.className = 'fas fa-check-circle text-success me-2';
+        toastElement.querySelector('.toast-header strong').textContent = 'Thành công';
+    }
     
     const toast = new bootstrap.Toast(toastElement);
     toast.show();
