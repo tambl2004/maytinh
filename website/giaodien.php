@@ -7,6 +7,7 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/main2.css">
 </head>
 <body>
     <!-- Navigation -->
@@ -28,12 +29,14 @@
                     <li class="nav-item"><a class="nav-link" href="?option=home"><i class="fas fa-home"></i> Trang chủ</a></li>
                     <li class="nav-item"><a class="nav-link" href="?option=sanpham"><i class="fas fa-laptop"></i> Sản phẩm</a></li>
                     <li class="nav-item"><a class="nav-link" href="?option=lienhe"><i class="fas fa-phone"></i> Liên hệ</a></li>
+                    <li class="nav-item"><a class="nav-link" href="?option=yeuthich"><i class="fas fa-heart"></i> Yêu thích</a></li>
                     <li class="nav-item">
-                        <a class="nav-link" href="#" onclick="showCart()">
+                        <a class="nav-link" href="?option=giohang">
                             <i class="fas fa-shopping-cart"></i> Giỏ hàng 
                             <span class="badge bg-danger" id="cartCount">0</span>
                         </a>
                     </li>
+                    <li class="nav-item"><a class="nav-link" href="../login.php"><i class="fas fa-user"></i> Đăng nhập</a></li>
                 </ul>
             </div>
         </div>
@@ -52,11 +55,15 @@
                 case 'lienhe':
                   include 'views/lienhe.php';
                   break;
+                case 'yeuthich':
+                  include 'views/yeuthich.php';
+                  break;
                 case 'chitietsanpham':
                   include 'views/chitietsanpham.php';
                   break;
-           
-          
+                case 'giohang':
+                  include 'views/giohang.php';
+                  break;
               default:
                   include '404.php';
           }
