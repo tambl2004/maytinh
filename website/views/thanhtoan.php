@@ -1,33 +1,44 @@
 <?php
-// Giả lập dữ liệu giỏ hàng (trong thực tế sẽ lấy từ session hoặc database)
-$cartItems = [
-    [
-        'id' => 1,
-        'name' => 'Dell XPS 13 Plus',
-        'image' => 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=300',
-        'price' => 45990000,
-        'original_price' => 52990000,
-        'quantity' => 1,
-        'specs' => 'Intel Core i7-1360P, 16GB RAM, 512GB SSD'
-    ],
-    [
-        'id' => 2,
-        'name' => 'MacBook Pro 14 M3',
-        'image' => 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=300',
-        'price' => 52990000,
-        'original_price' => 0,
-        'quantity' => 1,
-        'specs' => 'Apple M3 Pro, 18GB RAM, 512GB SSD'
-    ]
-];
+$userId = $_SESSION['id'];
 
+// Lấy thông tin người dùng từ cơ sở dữ liệu
+$sqlUser = "SELECT hoten, sodienthoai, email FROM nguoidung WHERE id = ?";
+$stmtUser = $conn->prepare($sqlUser);
+$stmtUser->bind_param("i", $userId);
+$stmtUser->execute();
+$resultUser = $stmtUser->get_result();
+$userInfo = $resultUser->fetch_assoc();
+$stmtUser->close();
+
+// Lấy giỏ hàng từ database
+$sql = "SELECT g.sanpham_id, g.soluong, s.id, s.ten, s.gia, s.giacu, s.hinhanh, s.thongso
+        FROM giohang g
+        JOIN sanpham s ON g.sanpham_id = s.id
+        WHERE g.nguoidung_id = ?";
+$stmt = $conn->prepare($sql);
+$stmt->bind_param("i", $userId);
+$stmt->execute();
+$result = $stmt->get_result();
+
+$cartItems = [];
 $subtotal = 0;
-foreach ($cartItems as $item) {
-    $subtotal += $item['price'] * $item['quantity'];
+while ($row = $result->fetch_assoc()) {
+    $row['quantity'] = $row['soluong'];
+    $row['subtotal'] = $row['gia'] * $row['quantity'];
+    $subtotal += $row['subtotal'];
+    $cartItems[] = $row;
+}
+$stmt->close();
+
+// Kiểm tra giỏ hàng rỗng
+if (empty($cartItems)) {
+    header('Location: ?option=giohang');
+    exit;
 }
 
+// Lấy mã giảm giá từ session
+$discount = isset($_SESSION['coupon']['discount']) ? $_SESSION['coupon']['discount'] : 0;
 $shipping = 50000;
-$discount = 1000000;
 $total = $subtotal + $shipping - $discount;
 ?>
 
@@ -35,8 +46,8 @@ $total = $subtotal + $shipping - $discount;
     <!-- Breadcrumb -->
     <nav aria-label="breadcrumb" class="breadcrumb-custom">
         <ol class="breadcrumb mb-0">
-            <li class="breadcrumb-item"><a href="?option=home">Trang chủ</a></li>
-            <li class="breadcrumb-item"><a href="?option=giohang">Giỏ hàng</a></li>
+            <li class="breadcrumb-item"><a href="?option=home" class="text-decoration-none">Trang chủ</a></li>
+            <li class="breadcrumb-item"><a href="?option=giohang" class="text-decoration-none">Giỏ hàng</a></li>
             <li class="breadcrumb-item active">Thanh toán</li>
         </ol>
     </nav>
@@ -56,45 +67,36 @@ $total = $subtotal + $shipping - $discount;
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Họ và tên *</label>
-                                <input type="text" class="form-control form-control-custom" name="fullname" required>
+                                <input type="text" class="form-control form-control-custom" name="fullname" value="<?php echo htmlspecialchars($userInfo['hoten'] ?? ''); ?>" required>
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Số điện thoại *</label>
-                                <input type="tel" class="form-control form-control-custom" name="phone" required>
+                                <input type="tel" class="form-control form-control-custom" name="phone" pattern="[0-9]{10,11}" value="<?php echo htmlspecialchars($userInfo['sodienthoai'] ?? ''); ?>" required>
                             </div>
                         </div>
                         
                         <div class="mb-3">
                             <label class="form-label">Email</label>
-                            <input type="email" class="form-control form-control-custom" name="email">
+                            <input type="email" class="form-control form-control-custom" name="email" value="<?php echo htmlspecialchars($userInfo['email'] ?? ''); ?>">
                         </div>
                         
                         <div class="row">
                             <div class="col-md-4 mb-3">
                                 <label class="form-label">Tỉnh/Thành phố *</label>
-                                <select class="form-control form-control-custom" name="province" required>
+                                <select class="form-control form-control-custom" name="province" id="province" required>
                                     <option value="">Chọn tỉnh/thành</option>
-                                    <option value="hcm">TP. Hồ Chí Minh</option>
-                                    <option value="hn">Hà Nội</option>
-                                    <option value="dn">Đà Nẵng</option>
                                 </select>
                             </div>
                             <div class="col-md-4 mb-3">
                                 <label class="form-label">Quận/Huyện *</label>
-                                <select class="form-control form-control-custom" name="district" required>
+                                <select class="form-control form-control-custom" name="district" id="district" required disabled>
                                     <option value="">Chọn quận/huyện</option>
-                                    <option value="q1">Quận 1</option>
-                                    <option value="q3">Quận 3</option>
-                                    <option value="q7">Quận 7</option>
                                 </select>
                             </div>
                             <div class="col-md-4 mb-3">
                                 <label class="form-label">Phường/Xã *</label>
-                                <select class="form-control form-control-custom" name="ward" required>
+                                <select class="form-control form-control-custom" name="ward" id="ward" required disabled>
                                     <option value="">Chọn phường/xã</option>
-                                    <option value="p1">Phường 1</option>
-                                    <option value="p2">Phường 2</option>
-                                    <option value="p3">Phường 3</option>
                                 </select>
                             </div>
                         </div>
@@ -129,7 +131,6 @@ $total = $subtotal + $shipping - $discount;
                                 <div class="shipping-price">50.000₫</div>
                             </label>
                         </div>
-                        
                         <div class="shipping-method">
                             <input type="radio" id="express" name="shipping_method" value="express">
                             <label for="express" class="shipping-label">
@@ -140,7 +141,6 @@ $total = $subtotal + $shipping - $discount;
                                 <div class="shipping-price">100.000₫</div>
                             </label>
                         </div>
-                        
                         <div class="shipping-method">
                             <input type="radio" id="same_day" name="shipping_method" value="same_day">
                             <label for="same_day" class="shipping-label">
@@ -172,7 +172,6 @@ $total = $subtotal + $shipping - $discount;
                                 </div>
                             </label>
                         </div>
-                        
                         <div class="payment-method">
                             <input type="radio" id="bank_transfer" name="payment_method" value="bank_transfer">
                             <label for="bank_transfer" class="payment-label">
@@ -183,7 +182,6 @@ $total = $subtotal + $shipping - $discount;
                                 </div>
                             </label>
                         </div>
-                        
                         <div class="payment-method">
                             <input type="radio" id="credit_card" name="payment_method" value="credit_card">
                             <label for="credit_card" class="payment-label">
@@ -194,7 +192,6 @@ $total = $subtotal + $shipping - $discount;
                                 </div>
                             </label>
                         </div>
-                        
                         <div class="payment-method">
                             <input type="radio" id="e_wallet" name="payment_method" value="e_wallet">
                             <label for="e_wallet" class="payment-label">
@@ -223,17 +220,27 @@ $total = $subtotal + $shipping - $discount;
                     <?php foreach ($cartItems as $item): ?>
                     <div class="checkout-item">
                         <div class="checkout-item-image">
-                            <img src="<?= $item['image'] ?>" alt="<?= $item['name'] ?>">
+                            <img src="<?php echo htmlspecialchars($item['hinhanh']); ?>" alt="<?php echo htmlspecialchars($item['ten']); ?>">
                         </div>
                         <div class="checkout-item-details">
-                            <div class="checkout-item-name"><?= $item['name'] ?></div>
-                            <div class="checkout-item-specs"><?= $item['specs'] ?></div>
-                            <div class="checkout-item-quantity">Số lượng: <?= $item['quantity'] ?></div>
+                            <div class="checkout-item-name"><?php echo htmlspecialchars($item['ten']); ?></div>
+                            <div class="checkout-item-specs">
+                                <?php
+                                $thongso = json_decode($item['thongso'], true);
+                                if (is_array($thongso)) {
+                                    echo "CPU: " . htmlspecialchars($thongso['cpu'] ?? 'N/A') . ", RAM: " . htmlspecialchars($thongso['ram'] ?? 'N/A') . 
+                                         ", Storage: " . htmlspecialchars($thongso['storage'] ?? 'N/A') . ", Screen: " . htmlspecialchars($thongso['screen'] ?? 'N/A');
+                                } else {
+                                    echo "Thông số: N/A";
+                                }
+                                ?>
+                            </div>
+                            <div class="checkout-item-quantity">Số lượng: <?php echo $item['quantity']; ?></div>
                         </div>
                         <div class="checkout-item-price">
-                            <div class="current-price"><?= number_format($item['price']) ?>₫</div>
-                            <?php if ($item['original_price'] > 0): ?>
-                                <div class="original-price"><?= number_format($item['original_price']) ?>₫</div>
+                            <div class="current-price"><?php echo number_format($item['gia'], 0, ',', '.'); ?>₫</div>
+                            <?php if ($item['giacu'] > 0): ?>
+                                <div class="original-price"><?php echo number_format($item['giacu'], 0, ',', '.'); ?>₫</div>
                             <?php endif; ?>
                         </div>
                     </div>
@@ -243,13 +250,13 @@ $total = $subtotal + $shipping - $discount;
                 <!-- Mã giảm giá -->
                 <div class="coupon-checkout">
                     <div class="coupon-input-group">
-                        <input type="text" class="coupon-input" placeholder="Nhập mã giảm giá">
-                        <button class="btn-apply-coupon">Áp dụng</button>
+                        <input type="text" class="coupon-input" placeholder="Nhập mã giảm giá" id="couponCode" value="<?php echo isset($_SESSION['coupon']['code']) ? htmlspecialchars($_SESSION['coupon']['code']) : ''; ?>">
+                        <button class="btn-apply-coupon" onclick="applyCoupon()">Áp dụng</button>
                     </div>
                     <div class="coupon-tags mt-2">
-                        <span class="coupon-tag">NEWCUSTOMER</span>
-                        <span class="coupon-tag">SAVE100K</span>
-                        <span class="coupon-tag">LAPTOP20</span>
+                        <span class="coupon-tag" onclick="setCoupon('NEWCUSTOMER')">NEWCUSTOMER</span>
+                        <span class="coupon-tag" onclick="setCoupon('SAVE100K')">SAVE100K</span>
+                        <span class="coupon-tag" onclick="setCoupon('LAPTOP20')">LAPTOP20</span>
                     </div>
                 </div>
                 
@@ -257,20 +264,20 @@ $total = $subtotal + $shipping - $discount;
                 <div class="price-breakdown">
                     <div class="price-item">
                         <span>Tạm tính:</span>
-                        <span><?= number_format($subtotal) ?>₫</span>
+                        <span id="subtotalAmount"><?php echo number_format($subtotal, 0, ',', '.'); ?>₫</span>
                     </div>
                     <div class="price-item">
                         <span>Phí vận chuyển:</span>
-                        <span id="shippingFee">50.000₫</span>
+                        <span id="shippingFee"><?php echo number_format($shipping, 0, ',', '.'); ?>₫</span>
                     </div>
                     <div class="price-item discount-item">
                         <span>Giảm giá:</span>
-                        <span>-<?= number_format($discount) ?>₫</span>
+                        <span id="discountAmount">-<?php echo number_format($discount, 0, ',', '.'); ?>₫</span>
                     </div>
                     <div class="price-divider"></div>
                     <div class="price-total">
                         <span>Tổng cộng:</span>
-                        <span id="totalAmount"><?= number_format($total) ?>₫</span>
+                        <span id="totalAmount"><?php echo number_format($total, 0, ',', '.'); ?>₫</span>
                     </div>
                 </div>
                 
@@ -300,8 +307,86 @@ $total = $subtotal + $shipping - $discount;
     </div>
 </div>
 
-
 <script>
+// Load provinces on page load
+document.addEventListener('DOMContentLoaded', function() {
+    fetch('https://provinces.open-api.vn/api/p/')
+        .then(response => response.json())
+        .then(data => {
+            const provinceSelect = document.getElementById('province');
+            data.forEach(province => {
+                const option = document.createElement('option');
+                option.value = province.code;
+                option.textContent = province.name;
+                provinceSelect.appendChild(option);
+            });
+            provinceSelect.disabled = false;
+        })
+        .catch(error => {
+            console.error('Lỗi khi tải danh sách tỉnh/thành phố:', error);
+            showToast('Không thể tải danh sách tỉnh/thành phố', 'warning');
+        });
+});
+
+// Load districts when province is selected
+document.getElementById('province').addEventListener('change', function() {
+    const provinceCode = this.value;
+    const districtSelect = document.getElementById('district');
+    const wardSelect = document.getElementById('ward');
+    
+    // Reset district and ward dropdowns
+    districtSelect.innerHTML = '<option value="">Chọn quận/huyện</option>';
+    wardSelect.innerHTML = '<option value="">Chọn phường/xã</option>';
+    districtSelect.disabled = true;
+    wardSelect.disabled = true;
+
+    if (provinceCode) {
+        fetch(`https://provinces.open-api.vn/api/p/${provinceCode}?depth=2`)
+            .then(response => response.json())
+            .then(data => {
+                data.districts.forEach(district => {
+                    const option = document.createElement('option');
+                    option.value = district.code;
+                    option.textContent = district.name;
+                    districtSelect.appendChild(option);
+                });
+                districtSelect.disabled = false;
+            })
+            .catch(error => {
+                console.error('Lỗi khi tải danh sách quận/huyện:', error);
+                showToast('Không thể tải danh sách quận/huyện', 'warning');
+            });
+    }
+});
+
+// Load wards when district is selected
+document.getElementById('district').addEventListener('change', function() {
+    const districtCode = this.value;
+    const wardSelect = document.getElementById('ward');
+    
+    // Reset ward dropdown
+    wardSelect.innerHTML = '<option value="">Chọn phường/xã</option>';
+    wardSelect.disabled = true;
+
+    if (districtCode) {
+        fetch(`https://provinces.open-api.vn/api/d/${districtCode}?depth=2`)
+            .then(response => response.json())
+            .then(data => {
+                data.wards.forEach(ward => {
+                    const option = document.createElement('option');
+                    option.value = ward.code;
+                    option.textContent = ward.name;
+                    wardSelect.appendChild(option);
+                });
+                wardSelect.disabled = false;
+            })
+            .catch(error => {
+                console.error('Lỗi khi tải danh sách phường/xã:', error);
+                showToast('Không thể tải danh sách phường/xã', 'warning');
+            });
+    }
+});
+
 // Update shipping fee based on selected method
 document.querySelectorAll('input[name="shipping_method"]').forEach(radio => {
     radio.addEventListener('change', function() {
@@ -315,66 +400,122 @@ document.querySelectorAll('input[name="shipping_method"]').forEach(radio => {
         document.getElementById('shippingFee').textContent = new Intl.NumberFormat('vi-VN').format(selectedFee) + '₫';
         
         // Update total
-        const subtotal = <?= $subtotal ?>;
-        const discount = <?= $discount ?>;
+        const subtotal = <?php echo $subtotal; ?>;
+        const discount = <?php echo $discount; ?>;
         const newTotal = subtotal + selectedFee - discount;
         document.getElementById('totalAmount').textContent = new Intl.NumberFormat('vi-VN').format(newTotal) + '₫';
     });
 });
 
-// Place order function
-function placeOrder() {
-    const form = document.getElementById('checkoutForm');
-    if (form.checkValidity()) {
-        // Show success message
-        const toastEl = document.getElementById('successToast');
-        const toastMessage = document.getElementById('toastMessage');
-        toastMessage.textContent = 'Đơn hàng đã được đặt thành công! Chúng tôi sẽ liên hệ với bạn sớm nhất.';
-        
-        const toast = new bootstrap.Toast(toastEl);
-        toast.show();
-        
-        // Simulate redirect after 3 seconds
-        setTimeout(() => {
-            window.location.href = '?option=home';
-        }, 3000);
+// Apply coupon
+function applyCoupon() {
+    const couponCode = document.getElementById('couponCode').value.trim();
+    if (couponCode) {
+        fetch('controllers/coupon_controller.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `action=apply&code=${couponCode}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast(`Mã giảm giá "${couponCode}" đã được áp dụng thành công!`);
+                // Cập nhật giảm giá và tổng tiền trên giao diện
+                document.getElementById('discountAmount').textContent = '-' + new Intl.NumberFormat('vi-VN').format(data.discount) + '₫';
+                const subtotal = <?php echo $subtotal; ?>;
+                const shipping = document.querySelector('input[name="shipping_method"]:checked').value;
+                const shippingFees = {
+                    'standard': 50000,
+                    'express': 100000,
+                    'same_day': 200000
+                };
+                const newTotal = subtotal + shippingFees[shipping] - data.discount;
+                document.getElementById('totalAmount').textContent = new Intl.NumberFormat('vi-VN').format(newTotal) + '₫';
+            } else {
+                showToast(data.message, 'warning');
+            }
+        })
+        .catch(error => {
+            showToast('Đã xảy ra lỗi hệ thống!', 'warning');
+        });
     } else {
-        form.reportValidity();
+        alert('Vui lòng nhập mã giảm giá');
     }
 }
 
-// Apply coupon
-document.querySelector('.btn-apply-coupon').addEventListener('click', function() {
-    const couponInput = document.querySelector('.coupon-input');
-    const couponCode = couponInput.value.trim().toUpperCase();
-    
-    if (couponCode) {
-        // Simulate coupon validation
-        const validCoupons = {
-            'NEWCUSTOMER': 500000,
-            'SAVE100K': 100000,
-            'LAPTOP20': 1000000
-        };
-        
-        if (validCoupons[couponCode]) {
-            const toastEl = document.getElementById('successToast');
-            const toastMessage = document.getElementById('toastMessage');
-            toastMessage.textContent = `Mã giảm giá "${couponCode}" đã được áp dụng thành công!`;
-            
-            const toast = new bootstrap.Toast(toastEl);
-            toast.show();
-            
-            couponInput.value = '';
-        } else {
-            alert('Mã giảm giá không hợp lệ!');
-        }
-    }
-});
+function setCoupon(code) {
+    document.getElementById('couponCode').value = code;
+    applyCoupon();
+}
 
-// Quick apply coupon tags
-document.querySelectorAll('.coupon-tag').forEach(tag => {
-    tag.addEventListener('click', function() {
-        document.querySelector('.coupon-input').value = this.textContent;
+// Place order function
+function placeOrder() {
+    const form = document.getElementById('checkoutForm');
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+
+    const formData = new FormData(form);
+    const shippingMethod = document.querySelector('input[name="shipping_method"]:checked').value;
+    const paymentMethod = document.querySelector('input[name="payment_method"]:checked').value;
+
+    // Lấy tên tỉnh, quận, phường từ các dropdown
+    const provinceName = document.getElementById('province').selectedOptions[0].text;
+    const districtName = document.getElementById('district').selectedOptions[0].text;
+    const wardName = document.getElementById('ward').selectedOptions[0].text;
+
+    const data = {
+        action: 'place_order',
+        fullname: formData.get('fullname'),
+        phone: formData.get('phone'),
+        email: formData.get('email'),
+        province: provinceName,
+        district: districtName,
+        ward: wardName,
+        address: formData.get('address'),
+        note: formData.get('note'),
+        shipping_method: shippingMethod,
+        payment_method: paymentMethod,
+        coupon_code: '<?php echo isset($_SESSION['coupon']['code']) ? $_SESSION['coupon']['code'] : ''; ?>'
+    };
+
+    fetch('controllers/order_controller.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams(data).toString()
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Đơn hàng đã được đặt thành công! Chúng tôi sẽ liên hệ với bạn sớm nhất.');
+            setTimeout(() => {
+                window.location.href = '?option=home';
+            }, 3000);
+        } else {
+            showToast('Đặt hàng thất bại! Vui lòng thử lại.', 'warning');
+        }
+    })
+    .catch(error => {
+        showToast('Đã xảy ra lỗi hệ thống!', 'warning');
     });
-});
+}
+
+function showToast(message, type = 'success') {
+    const toastElement = document.getElementById('successToast');
+    const toastMessage = document.getElementById('toastMessage');
+    toastMessage.textContent = message;
+    
+    const toastIcon = toastElement.querySelector('.toast-header i');
+    if (type === 'warning') {
+        toastIcon.className = 'fas fa-exclamation-triangle text-warning me-2';
+        toastElement.querySelector('.toast-header strong').textContent = 'Thông báo';
+    } else {
+        toastIcon.className = 'fas fa-check-circle text-success me-2';
+        toastElement.querySelector('.toast-header strong').textContent = 'Thành công';
+    }
+    
+    const toast = new bootstrap.Toast(toastElement);
+    toast.show();
+}
 </script>

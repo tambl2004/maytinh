@@ -7,7 +7,33 @@ require_once '../inc/auth.php'; // Bao gồm file auth.php
 $isLoggedIn = isLoggedIn();
 $userRole = getUserRole();
 $option = isset($_GET['option']) ? $_GET['option'] : 'home';
+
+// Lấy số lượng sản phẩm trong giỏ hàng
+$cartCount = 0;
+if ($isLoggedIn) {
+    $userId = $_SESSION['id'];
+    $sqlCartCount = "SELECT SUM(soluong) as count FROM giohang WHERE nguoidung_id = ?";
+    $stmtCartCount = $conn->prepare($sqlCartCount);
+    $stmtCartCount->bind_param("i", $userId);
+    $stmtCartCount->execute();
+    $resultCartCount = $stmtCartCount->get_result();
+    $rowCartCount = $resultCartCount->fetch_assoc();
+    $cartCount = (int)($rowCartCount['count'] ?? 0);
+    $stmtCartCount->close();
+
+    // Lấy số lượng sản phẩm trong danh sách yêu thích
+    $favoriteCount = 0;
+    $sqlFavoriteCount = "SELECT COUNT(*) as count FROM yeuthich WHERE nguoidung_id = ?";
+    $stmtFavoriteCount = $conn->prepare($sqlFavoriteCount);
+    $stmtFavoriteCount->bind_param("i", $userId);
+    $stmtFavoriteCount->execute();
+    $resultFavoriteCount = $stmtFavoriteCount->get_result();
+    $rowFavoriteCount = $resultFavoriteCount->fetch_assoc();
+    $favoriteCount = (int)($rowFavoriteCount['count'] ?? 0);
+    $stmtFavoriteCount->close();
+}
 ?>
+
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -56,11 +82,17 @@ $option = isset($_GET['option']) ? $_GET['option'] : 'home';
                     <li class="nav-item">
                         <a class="nav-link <?php echo ($option == 'yeuthich') ? 'active' : ''; ?>" href="?option=yeuthich">
                             <i class="fas fa-heart" style="font-size: 1.5em;"></i>
+                            <?php if ($isLoggedIn && $favoriteCount > 0): ?>
+                                <span class="badge bg-danger" id="favoriteCount" style="position: relative; bottom: 15px;"><?php echo $favoriteCount; ?></span>
+                            <?php endif; ?>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link <?php echo ($option == 'giohang') ? 'active' : ''; ?>" href="?option=giohang">
-                            <i class="fas fa-shopping-cart" style="font-size: 1.5em;"></i><span class="badge bg-danger" style="position: relative; bottom: 15px;">3</span>
+                            <i class="fas fa-shopping-cart" style="font-size: 1.5em;"></i>
+                            <?php if ($isLoggedIn && $cartCount > 0): ?>
+                                <span class="badge bg-danger" id="cartCount" style="position: relative; bottom: 15px;"><?php echo $cartCount; ?></span>
+                            <?php endif; ?>
                         </a>
                     </li>
                     <li class="nav-item">
@@ -164,7 +196,6 @@ $option = isset($_GET['option']) ? $_GET['option'] : 'home';
             </div>
         </div>
     </div>
-
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
