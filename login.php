@@ -28,7 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $_SESSION['id'] = $user['id'];
                 $_SESSION['Chucvu'] = $user['Chucvu']; // Đảm bảo vai trò được lưu vào session
                 if ($user['Chucvu'] == 'admin') {
-                    header("Location: admin.php");
+                    header("Location: admin/admin.php");
                     exit();
                 } else {
                     header("Location: website/giaodien.php");

@@ -321,7 +321,7 @@ function showToast(message, type = 'success') {
         toast: true,
         position: 'top-end',
         showConfirmButton: false,
-        timer: 3000
+        timer: 1000
     });
 }
 
@@ -513,7 +513,7 @@ function placeOrder() {
             showToast('Đơn hàng đã được đặt thành công! Chúng tôi sẽ liên hệ với bạn sớm nhất.');
             setTimeout(() => {
                 window.location.href = '?option=home';
-            }, 3000);
+            }, 1000);
         } else {
             showToast(data.message || 'Đặt hàng thất bại! Vui lòng thử lại.', 'warning');
         }

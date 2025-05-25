@@ -293,7 +293,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['change_password'])) {
                     toast: true,
                     position: 'top-end',
                     showConfirmButton: false,
-                    timer: 3000
+                    timer: 1000
                 });
             <?php elseif (!empty($error_message)): ?>
                 Swal.fire({
@@ -302,7 +302,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['change_password'])) {
                     toast: true,
                     position: 'top-end',
                     showConfirmButton: false,
-                    timer: 3000
+                    timer: 1000
                 });
             <?php endif; ?>
         });

@@ -380,7 +380,7 @@ if ($userId) {
                     toast: true,
                     position: 'top-end',
                     showConfirmButton: false,
-                    timer: 3000
+                    timer: 1000
                 });
             } else {
                 Swal.fire({
@@ -389,7 +389,7 @@ if ($userId) {
                     toast: true,
                     position: 'top-end',
                     showConfirmButton: false,
-                    timer: 3000
+                    timer: 1000
                 });
             }
         });
@@ -423,7 +423,7 @@ if ($userId) {
                         toast: true,
                         position: 'top-end',
                         showConfirmButton: false,
-                        timer: 3000
+                        timer: 1000
                     });
                 } else {
                     icon.classList.remove('fas');
@@ -435,7 +435,7 @@ if ($userId) {
                         toast: true,
                         position: 'top-end',
                         showConfirmButton: false,
-                        timer: 3000
+                        timer: 1000
                     });
                 }
             } else {
@@ -445,7 +445,7 @@ if ($userId) {
                     toast: true,
                     position: 'top-end',
                     showConfirmButton: false,
-                    timer: 3000
+                    timer: 1000
                 });
             }
         });

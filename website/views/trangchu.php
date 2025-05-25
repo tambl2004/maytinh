@@ -64,7 +64,7 @@ while ($row = mysqli_fetch_assoc($category_result)) {
                         <div class="hero-content-overlay">
                             <h1 class="display-4 fw-bold mb-4">Gaming Laptops</h1>
                             <p class="lead mb-4">Hiệu năng vượt trội cho game thủ chuyên nghiệp</p>
-                            <button class="btn btn-custom btn-lg">Khám phá ngay</button>
+                            <button class="btn btn-custom btn-lg" onclick="window.location.href='?option=sanpham'">Khám phá ngay</button>
                         </div>
                     </div>
                 </div>
@@ -74,7 +74,7 @@ while ($row = mysqli_fetch_assoc($category_result)) {
                         <div class="hero-content-overlay">
                             <h1 class="display-4 fw-bold mb-4">Laptop Văn Phòng</h1>
                             <p class="lead mb-4">Tối ưu cho công việc hàng ngày</p>
-                            <button class="btn btn-custom btn-lg">Xem bộ sưu tập</button>
+                            <button class="btn btn-custom btn-lg" onclick="window.location.href='?option=sanpham'">Xem bộ sưu tập</button>
                         </div>
                     </div>
                 </div>
@@ -84,15 +84,15 @@ while ($row = mysqli_fetch_assoc($category_result)) {
                         <div class="hero-content-overlay">
                             <h1 class="display-4 fw-bold mb-4">Laptop Đồ Họa</h1>
                             <p class="lead mb-4">Sáng tạo không giới hạn</p>
-                            <button class="btn btn-custom btn-lg">Tìm hiểu thêm</button>
+                            <button class="btn btn-custom btn-lg" onclick="window.location.href='?option=sanpham'">Tìm hiểu thêm</button>
                         </div>
                     </div>
                 </div>
             </div>
-            <button class="carousel-control-prev" type="button" data-bs-target="#bannerCarousel" data-bs-slide="prev">
+            <button class="carousel-control-prev" type="button" data-bs-target="#bannerCarousel" data-bs-slide="prev" style="width: 5%;">
                 <span class="carousel-control-prev-icon"></span>
             </button>
-            <button class="carousel-control-next" type="button" data-bs-target="#bannerCarousel" data-bs-slide="next">
+            <button class="carousel-control-next" type="button" data-bs-target="#bannerCarousel" data-bs-slide="next" style="width: 5%;">
                 <span class="carousel-control-next-icon"></span>
             </button>
         </div>

@@ -301,11 +301,11 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    background: linear-gradient(45deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 100%);
+    background: linear-gradient(45deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 60%);
     display: flex;
     align-items: center;
     justify-content: flex-start;
-    padding: 0 50px;
+    padding: 0 120px;
 }
 
 .hero-content-overlay {
@@ -496,13 +496,12 @@ body {
 }
 
 .current-price {
-    font-size: 2rem;
+    font-size: 1.2rem;
     font-weight: bold;
     color: var(--accent-color);
 }
 
 .original-price {
-    font-size: 1.2rem;
     text-decoration: line-through;
     color: #999;
     margin-left: 10px;

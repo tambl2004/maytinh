@@ -232,7 +232,7 @@ function showToast(message, type = 'success') {
         toast: true,
         position: 'top-end',
         showConfirmButton: false,
-        timer: 3000
+        timer: 1000
     });
 }
 
