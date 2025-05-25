@@ -4,6 +4,7 @@ $userId = $_SESSION['id'];
 
 // Lấy thông tin người dùng từ CSDL
 $sql = "SELECT * FROM nguoidung WHERE id = ?";
+
 $stmt = $conn->prepare($sql);
 $stmt->bind_param('i', $userId);
 $stmt->execute();
@@ -235,8 +236,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['change_password'])) {
 
                                             // Lấy chi tiết đơn hàng
                                             $orderId = $order['id'];
-                                            $sqlDetail = "SELECT ctdh.*, sp.ten FROM chitietdonhang ctdh JOIN sanpham sp ON ctdh.sanpham_id = sp.id WHERE ctdh.donhang_id = ?";
-                                            $stmtDetail = $conn->prepare($sqlDetail);
+                                            $sqlDetail = "SELECT ctdh.*, sp.ten, sp.hinhanh FROM chitietdonhang ctdh JOIN sanpham sp ON ctdh.sanpham_id = sp.id WHERE ctdh.donhang_id = ?";                                            $stmtDetail = $conn->prepare($sqlDetail);
                                             $stmtDetail->bind_param('i', $orderId);
                                             $stmtDetail->execute();
                                             $details = $stmtDetail->get_result();
@@ -246,7 +246,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['change_password'])) {
                                                 echo '<div class="row align-items-center">';
                                                 echo '<div class="col-md-2">';
                                                 echo '<div class="cart-item-image">';
-                                                echo '<img src="https://via.placeholder.com/120" alt="' . htmlspecialchars($detail['ten']) . '">';
+                                                echo '<img src="' . htmlspecialchars($detail['hinhanh']) . '" alt="' . htmlspecialchars($detail['ten']) . '">';
                                                 echo '</div>';
                                                 echo '</div>';
                                                 echo '<div class="col-md-4">';

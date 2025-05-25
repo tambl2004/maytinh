@@ -89,7 +89,6 @@ $option = isset($_GET['option']) ? $_GET['option'] : 'home';
                                     <i class="bi bi-bag-check"></i>
                                     <span>Đơn hàng</span>
                                 </div>
-                                <span class="notification-badge success-badge">24</span>
                             </a>
                         </li>
                         <li class="nav-item">

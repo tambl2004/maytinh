@@ -493,3 +493,41 @@ body {
         font-size: 12px;
     }
 }
+
+/* Quản lý đơn hàng */
+.order-table th,
+.order-table td {
+    padding: 12px 15px;
+    font-size: 14px;
+}
+
+.order-table th {
+    background-color: #f8f9fa;
+    color: #1a1a2e;
+    font-weight: 600;
+}
+
+.order-table td {
+    background: #ffffff;
+    border: none;
+    border-bottom: 1px solid #e5e7eb;
+    border-top: 1px solid #e5e7eb;
+}
+
+.order-table .product-row:hover td {
+    background: #f1f5f9;
+}
+
+.product-item {
+    border-bottom: 1px solid #e5e7eb;
+    padding-bottom: 10px;
+}
+
+.product-item:last-child {
+    border-bottom: none;
+}
+
+.btn-action-custom.remove-product {
+    padding: 6px;
+    font-size: 12px;
+}
