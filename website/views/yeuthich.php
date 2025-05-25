@@ -224,6 +224,18 @@ function renderStars($rating) {
 </div>
 
 <script>
+// Hàm hiển thị thông báo SweetAlert2
+function showToast(message, type = 'success') {
+    Swal.fire({
+        icon: type,
+        title: message,
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 3000
+    });
+}
+
 // Filter and Sort Functions
 document.getElementById('brandFilter').addEventListener('change', filterProducts);
 document.getElementById('categoryFilter').addEventListener('change', filterProducts);
@@ -281,11 +293,14 @@ function toggleFavorite(productId, button) {
     .then(data => {
         if (data.success) {
             button.classList.remove('active');
-            button.closest('.product-item').style.display = 'none';
-            showToast('Đã xóa khỏi danh sách yêu thích!', 'warning');
+            const productItem = button.closest('.product-item');
+            productItem.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+            productItem.style.opacity = '0';
+            productItem.style.transform = 'translateY(-20px)';
             setTimeout(() => {
-                button.closest('.product-item').remove();
+                productItem.remove();
                 updateFavoriteCount();
+                showToast('Đã xóa khỏi danh sách yêu thích!', 'warning');
                 if (document.querySelectorAll('.product-item').length === 0) {
                     document.getElementById('productsGrid').innerHTML = `
                         <div class="col-12 text-center py-5">
@@ -301,8 +316,11 @@ function toggleFavorite(productId, button) {
                 }
             }, 300);
         } else {
-            showToast('Không thể xóa sản phẩm yêu thích!', 'warning');
+            showToast(data.message || 'Không thể xóa sản phẩm yêu thích!', 'warning');
         }
+    })
+    .catch(error => {
+        showToast('Đã xảy ra lỗi hệ thống!', 'warning');
     });
 }
 
@@ -318,67 +336,91 @@ function addToCart(productId) {
             showToast('Đã thêm sản phẩm vào giỏ hàng!', 'success');
             updateCartCount();
         } else {
-            showToast('Không thể thêm vào giỏ hàng!', 'warning');
+            showToast(data.message || 'Không thể thêm vào giỏ hàng!', 'warning');
         }
+    })
+    .catch(error => {
+        showToast('Đã xảy ra lỗi hệ thống!', 'warning');
     });
 }
 
 function clearAllFavorites() {
-    if (confirm('Bạn có chắc chắn muốn xóa tất cả sản phẩm yêu thích?')) {
-        fetch('controllers/favorite_controller.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: 'action=clear'
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                const products = document.querySelectorAll('.product-item');
-                products.forEach(product => {
-                    product.style.opacity = '0';
-                    product.style.transform = 'translateY(-20px)';
-                });
-                setTimeout(() => {
-                    document.getElementById('productsGrid').innerHTML = `
-                        <div class="col-12 text-center py-5">
-                            <i class="fas fa-heart-broken text-muted" style="font-size: 4rem; margin-bottom: 20px;"></i>
-                            <h3 class="text-muted mb-3">Đã xóa tất cả sản phẩm yêu thích</h3>
-                            <p class="text-muted mb-4">Hãy khám phá và thêm những sản phẩm bạn yêu thích vào danh sách này</p>
-                            <a href="?option=sanpham" class="btn btn-custom btn-lg">
-                                <i class="fas fa-shopping-bag me-2"></i>
-                                Khám phá sản phẩm
-                            </a>
-                        </div>
-                    `;
-                }, 300);
-                showToast('Đã xóa tất cả sản phẩm yêu thích!', 'warning');
-            } else {
-                showToast('Không thể xóa danh sách yêu thích!', 'warning');
-            }
-        });
-    }
+    Swal.fire({
+        title: 'Xóa tất cả sản phẩm yêu thích?',
+        text: 'Hành động này không thể hoàn tác!',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Xóa tất cả',
+        cancelButtonText: 'Hủy'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            fetch('controllers/favorite_controller.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'action=clear'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const products = document.querySelectorAll('.product-item');
+                    products.forEach(product => {
+                        product.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+                        product.style.opacity = '0';
+                        product.style.transform = 'translateY(-20px)';
+                    });
+                    setTimeout(() => {
+                        document.getElementById('productsGrid').innerHTML = `
+                            <div class="col-12 text-center py-5">
+                                <i class="fas fa-heart-broken text-muted" style="font-size: 4rem; margin-bottom: 20px;"></i>
+                                <h3 class="text-muted mb-3">Đã xóa tất cả sản phẩm yêu thích</h3>
+                                <p class="text-muted mb-4">Hãy khám phá và thêm những sản phẩm bạn yêu thích vào danh sách này</p>
+                                <a href="?option=sanpham" class="btn btn-custom btn-lg">
+                                    <i class="fas fa-shopping-bag me-2"></i>
+                                    Khám phá sản phẩm
+                                </a>
+                            </div>
+                        `;
+                        showToast('Đã xóa tất cả sản phẩm yêu thích!', 'warning');
+                    }, 300);
+                } else {
+                    showToast(data.message || 'Không thể xóa danh sách yêu thích!', 'warning');
+                }
+            })
+            .catch(error => {
+                showToast('Đã xảy ra lỗi hệ thống!', 'warning');
+            });
+        }
+    });
 }
 
 function addAllToCart() {
     const visibleProducts = document.querySelectorAll('.product-item:not([style*="display: none"])');
     const count = visibleProducts.length;
     
-    if (count > 0) {
-        fetch('controllers/cart_controller.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: 'action=add_all_favorites'
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showToast(`Đã thêm ${count} sản phẩm vào giỏ hàng!`, 'success');
-                updateCartCount();
-            } else {
-                showToast('Không thể thêm tất cả vào giỏ hàng!', 'warning');
-            }
-        });
+    if (count === 0) {
+        showToast('Không có sản phẩm nào để thêm vào giỏ hàng!', 'warning');
+        return;
     }
+
+    fetch('controllers/favorite_controller.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'action=add_all_favorites'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast(`Đã thêm ${count} sản phẩm vào giỏ hàng!`, 'success');
+            updateCartCount();
+        } else {
+            showToast(data.message || 'Không thể thêm tất cả vào giỏ hàng!', 'warning');
+        }
+    })
+    .catch(error => {
+        showToast('Đã xảy ra lỗi hệ thống!', 'warning');
+    });
 }
 
 function updateFavoriteCount() {
@@ -391,30 +433,25 @@ function updateCartCount() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            const cartCount = document.querySelector('.badge.bg-danger');
+            const cartCount = document.querySelector('#cartCount');
             if (cartCount) {
                 cartCount.textContent = data.count;
+                cartCount.style.display = data.count > 0 ? 'inline-block' : 'none';
+            } else if (data.count > 0) {
+                const cartIcon = document.querySelector('.nav-link[href="?option=giohang"]');
+                const badge = document.createElement('span');
+                badge.id = 'cartCount';
+                badge.className = 'badge bg-danger';
+                badge.style.position = 'relative';
+                badge.style.bottom = '15px';
+                badge.textContent = data.count;
+                cartIcon.appendChild(badge);
             }
         }
+    })
+    .catch(error => {
+        console.error('Lỗi khi cập nhật số lượng giỏ hàng:', error);
     });
-}
-
-function showToast(message, type = 'success') {
-    const toast = document.getElementById('successToast');
-    const toastMessage = document.getElementById('toastMessage');
-    const toastIcon = toast.querySelector('.toast-header i');
-    
-    toastMessage.textContent = message;
-    if (type === 'warning') {
-        toastIcon.className = 'fas fa-exclamation-triangle text-warning me-2';
-        toast.querySelector('.toast-header strong').textContent = 'Thông báo';
-    } else {
-        toastIcon.className = 'fas fa-check-circle text-success me-2';
-        toast.querySelector('.toast-header strong').textContent = 'Thành công';
-    }
-    
-    const bsToast = new bootstrap.Toast(toast);
-    bsToast.show();
 }
 
 document.addEventListener('DOMContentLoaded', function() {

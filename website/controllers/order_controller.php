@@ -31,6 +31,18 @@ if ($action === 'place_order') {
         exit;
     }
 
+    // Validate phone number
+    if (!preg_match('/^[0-9]{10,11}$/', $phone)) {
+        echo json_encode(['success' => false, 'message' => 'Số điện thoại không hợp lệ']);
+        exit;
+    }
+
+    // Validate email if provided
+    if (!empty($email) && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        echo json_encode(['success' => false, 'message' => 'Email không hợp lệ']);
+        exit;
+    }
+
     // Tính phí vận chuyển
     $shippingFees = [
         'standard' => 50000,
@@ -63,8 +75,8 @@ if ($action === 'place_order') {
         exit;
     }
 
-    // Giả lập giảm giá (cần tích hợp với coupon_controller.php)
-    $discount = 0;
+    // Lấy mã giảm giá từ session
+    $discount = isset($_SESSION['coupon']['discount']) ? $_SESSION['coupon']['discount'] : 0;
     $total = $subtotal + $shipping - $discount;
 
     // Lưu đơn hàng
@@ -90,12 +102,26 @@ if ($action === 'place_order') {
         }
         $stmt->close();
 
+        // Cập nhật số lượt sử dụng mã giảm giá
+        if (isset($_SESSION['coupon']['coupon_id'])) {
+            $sqlUpdateCoupon = "UPDATE magiamgia SET used_count = used_count + 1 WHERE id = ?";
+            $stmtUpdateCoupon = $conn->prepare($sqlUpdateCoupon);
+            $stmtUpdateCoupon->bind_param("i", $_SESSION['coupon']['coupon_id']);
+            $stmtUpdateCoupon->execute();
+            $stmtUpdateCoupon->close();
+        }
+
         // Xóa giỏ hàng
         $sql = "DELETE FROM giohang WHERE nguoidung_id = ?";
         $stmt = $conn->prepare($sql);
         $stmt->bind_param("i", $userId);
         $stmt->execute();
         $stmt->close();
+
+        // Xóa mã giảm giá trong session
+        if (isset($_SESSION['coupon'])) {
+            unset($_SESSION['coupon']);
+        }
 
         $conn->commit();
         echo json_encode(['success' => true, 'message' => 'Đơn hàng đã được đặt thành công']);
@@ -106,4 +132,6 @@ if ($action === 'place_order') {
 } else {
     echo json_encode(['success' => false, 'message' => 'Hành động không hợp lệ']);
 }
+
+$conn->close();
 ?>

@@ -1,3 +1,19 @@
+<?php
+$isLoggedIn = isLoggedIn();
+$userInfo = null;
+
+if ($isLoggedIn) {
+    $userId = $_SESSION['id'];
+    $sql = "SELECT hoten, email, sodienthoai FROM nguoidung WHERE id = ?";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("i", $userId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $userInfo = $result->fetch_assoc();
+    $stmt->close();
+}
+?>
+
 <!-- Breadcrumb -->
 <div class="container mt-4">
     <nav class="breadcrumb-custom">
@@ -13,7 +29,6 @@
     <!-- Page Header -->
     <div class="text-center mb-5">
         <h1 class="section-title display-4 text-center">Liên hệ với chúng tôi</h1>
-        <p class="lead text-muted">Chúng tôi luôn sẵn sàng hỗ trợ bạn. Hãy liên hệ với TechLaptop để được tư vấn tốt nhất!</p>
     </div>
 
     <div class="row">
@@ -30,7 +45,7 @@
                     </div>
                     <div class="contact-details">
                         <h5>Địa chỉ</h5>
-                        <p>123 Đường Công Nghệ<br>Quận 1, TP. Hồ Chí Minh<br>Việt Nam</p>
+                        <p>Xuân La, Tây Hồ, Hà Nội<br>Việt Nam</p>
                     </div>
                 </div>
 
@@ -40,7 +55,7 @@
                     </div>
                     <div class="contact-details">
                         <h5>Điện thoại</h5>
-                        <p><a href="tel:0123456789" class="contact-link">0123 456 789</a><br>
+                        <p><a href="tel:0969859400" class="contact-link">0969 859 400</a><br>
                         <a href="tel:0987654321" class="contact-link">0987 654 321</a></p>
                     </div>
                 </div>
@@ -51,7 +66,7 @@
                     </div>
                     <div class="contact-details">
                         <h5>Email</h5>
-                        <p><a href="mailto:support@techlaptop.vn" class="contact-link">support@techlaptop.vn</a><br>
+                        <p><a href="mailto:vantamst97@gmail.com" class="contact-link">vantamst97@gmail.com</a><br>
                         <a href="mailto:sales@techlaptop.vn" class="contact-link">sales@techlaptop.vn</a></p>
                     </div>
                 </div>
@@ -74,7 +89,6 @@
                         <a href="#" class="social-link"><i class="fab fa-instagram"></i></a>
                         <a href="#" class="social-link"><i class="fab fa-twitter"></i></a>
                         <a href="#" class="social-link"><i class="fab fa-youtube"></i></a>
-                        <a href="#" class="social-link"><i class="fab fa-zalo"></i></a>
                     </div>
                 </div>
             </div>
@@ -88,22 +102,22 @@
                     <p class="text-muted mb-4">Điền thông tin vào form dưới đây, chúng tôi sẽ phản hồi trong vòng 24 giờ.</p>
                 </div>
 
-                <form id="contactForm" class="contact-form">
+                <form id="contactForm" class="contact-form" action="process_contact.php" method="POST">
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label for="fullName" class="form-label">Họ và tên <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control form-control-custom" id="fullName" name="fullName" required>
+                            <input type="text" class="form-control form-control-custom" id="fullName" name="fullName" value="<?php echo $isLoggedIn && $userInfo['hoten'] ? htmlspecialchars($userInfo['hoten']) : ''; ?>" required <?php echo $isLoggedIn && $userInfo['hoten'] ? 'readonly' : ''; ?>>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="email" class="form-label">Email <span class="text-danger">*</span></label>
-                            <input type="email" class="form-control form-control-custom" id="email" name="email" required>
+                            <input type="email" class="form-control form-control-custom" id="email" name="email" value="<?php echo $isLoggedIn && $userInfo['email'] ? htmlspecialchars($userInfo['email']) : ''; ?>" required <?php echo $isLoggedIn && $userInfo['email'] ? 'readonly' : ''; ?>>
                         </div>
                     </div>
                     
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label for="phone" class="form-label">Số điện thoại</label>
-                            <input type="tel" class="form-control form-control-custom" id="phone" name="phone">
+                            <input type="tel" class="form-control form-control-custom" id="phone" name="phone" value="<?php echo $isLoggedIn && $userInfo['sodienthoai'] ? htmlspecialchars($userInfo['sodienthoai']) : ''; ?>" <?php echo $isLoggedIn && $userInfo['sodienthoai'] ? 'readonly' : ''; ?>>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="subject" class="form-label">Chủ đề <span class="text-danger">*</span></label>
@@ -155,11 +169,11 @@
                 
                 <div class="map-wrapper">
                     <iframe 
-                        src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3919.4326848288834!2d106.69662531533513!3d10.776889062178848!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x31752f1c06f4e1dd%3A0x43900f1d4539a3d!2sQu%E1%BA%ADn%201%2C%20Th%C3%A0nh%20ph%E1%BB%91%20H%E1%BB%93%20Ch%C3%AD%20Minh%2C%20Vi%E1%BB%87t%20Nam!5e0!3m2!1svi!2s!4v1620000000000!5m2!1svi!2s"
-                        class="map-iframe"
-                        allowfullscreen="" 
-                        loading="lazy" 
-                        referrerpolicy="no-referrer-when-downgrade">
+                    src="https://www.google.com/maps/embed?pb=!1m14!1m12!1m3!1d11820.600236008953!2d105.80784059237389!3d21.062443572034773!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!5e0!3m2!1svi!2s!4v1748141279922!5m2!1svi!2s" 
+                    class="map-iframe"
+                    allowfullscreen="" 
+                    loading="lazy" 
+                    referrerpolicy="no-referrer-when-downgrade">
                     </iframe>
                 </div>
             </div>
@@ -218,31 +232,16 @@
     </div>
 </div>
 
-
 <script>
-document.getElementById('contactForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    
-    // Get form data
-    const formData = new FormData(this);
-    const fullName = formData.get('fullName');
-    const email = formData.get('email');
-    const subject = formData.get('subject');
-    
-    // Show success message
-    showToast('Cảm ơn ' + fullName + '! Tin nhắn của bạn đã được gửi thành công. Chúng tôi sẽ phản hồi trong vòng 24 giờ.');
-    
-    // Reset form
-    this.reset();
+document.addEventListener('DOMContentLoaded', function() {
+    <?php if (isset($_SESSION['toast'])): ?>
+        Swal.fire({
+            icon: '<?php echo $_SESSION['toast']['type'] === 'success' ? 'success' : 'error'; ?>',
+            title: '<?php echo $_SESSION['toast']['type'] === 'success' ? 'Thành công' : 'Lỗi'; ?>',
+            html: '<?php echo $_SESSION['toast']['message']; ?>',
+            confirmButtonText: 'OK'
+        });
+        <?php unset($_SESSION['toast']); ?>
+    <?php endif; ?>
 });
-
-function showToast(message) {
-    const toastElement = document.getElementById('successToast');
-    const toastMessage = document.getElementById('toastMessage');
-    
-    toastMessage.textContent = message;
-    
-    const toast = new bootstrap.Toast(toastElement);
-    toast.show();
-}
 </script>

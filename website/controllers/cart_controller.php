@@ -11,8 +11,42 @@ if (!isset($_SESSION['id'])) {
 
 $userId = $_SESSION['id'];
 $action = $_POST['action'] ?? '';
+$shipping = 50000; // Phí vận chuyển cố định
 
 $response = ['success' => false];
+
+// Hàm tính toán tổng tiền và số lượng giỏ hàng
+function getCartSummary($conn, $userId) {
+    global $shipping;
+    $discount = isset($_SESSION['coupon']['discount']) ? $_SESSION['coupon']['discount'] : 0;
+
+    $sql = "SELECT g.soluong, s.gia
+            FROM giohang g
+            JOIN sanpham s ON g.sanpham_id = s.id
+            WHERE g.nguoidung_id = ?";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("i", $userId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    $subtotal = 0;
+    $cartCount = 0;
+
+    while ($row = $result->fetch_assoc()) {
+        $subtotal += $row['gia'] * $row['soluong'];
+        $cartCount += $row['soluong'];
+    }
+    $stmt->close();
+
+    $total = $subtotal > 0 ? $subtotal + $shipping - $discount : 0;
+
+    return [
+        'newSubtotal' => $subtotal,
+        'newTotal' => $total,
+        'newCartCount' => $cartCount,
+        'discount' => $discount
+    ];
+}
 
 switch ($action) {
     case 'add':
@@ -67,7 +101,14 @@ switch ($action) {
             $stmtUpdate = $conn->prepare($sqlUpdate);
             $stmtUpdate->bind_param("iii", $newQuantity, $userId, $productId);
             if ($stmtUpdate->execute()) {
-                $response = ['success' => true];
+                $summary = getCartSummary($conn, $userId);
+                $response = [
+                    'success' => true,
+                    'newSubtotal' => $summary['newSubtotal'],
+                    'newTotal' => $summary['newTotal'],
+                    'newCartCount' => $summary['newCartCount'],
+                    'discount' => $summary['discount']
+                ];
             }
             $stmtUpdate->close();
         } else {
@@ -76,7 +117,14 @@ switch ($action) {
             $stmtInsert = $conn->prepare($sqlInsert);
             $stmtInsert->bind_param("iii", $userId, $productId, $quantity);
             if ($stmtInsert->execute()) {
-                $response = ['success' => true];
+                $summary = getCartSummary($conn, $userId);
+                $response = [
+                    'success' => true,
+                    'newSubtotal' => $summary['newSubtotal'],
+                    'newTotal' => $summary['newTotal'],
+                    'newCartCount' => $summary['newCartCount'],
+                    'discount' => $summary['discount']
+                ];
             }
             $stmtInsert->close();
         }
@@ -117,7 +165,14 @@ switch ($action) {
         $stmtUpdate = $conn->prepare($sqlUpdate);
         $stmtUpdate->bind_param("iii", $quantity, $userId, $productId);
         if ($stmtUpdate->execute()) {
-            $response = ['success' => true];
+            $summary = getCartSummary($conn, $userId);
+            $response = [
+                'success' => true,
+                'newSubtotal' => $summary['newSubtotal'],
+                'newTotal' => $summary['newTotal'],
+                'newCartCount' => $summary['newCartCount'],
+                'discount' => $summary['discount']
+            ];
         }
         $stmtUpdate->close();
         break;
@@ -134,7 +189,14 @@ switch ($action) {
         $stmtDelete = $conn->prepare($sqlDelete);
         $stmtDelete->bind_param("ii", $userId, $productId);
         if ($stmtDelete->execute()) {
-            $response = ['success' => true];
+            $summary = getCartSummary($conn, $userId);
+            $response = [
+                'success' => true,
+                'newSubtotal' => $summary['newSubtotal'],
+                'newTotal' => $summary['newTotal'],
+                'newCartCount' => $summary['newCartCount'],
+                'discount' => $summary['discount']
+            ];
         }
         $stmtDelete->close();
         break;
@@ -144,23 +206,31 @@ switch ($action) {
         $stmtClear = $conn->prepare($sqlClear);
         $stmtClear->bind_param("i", $userId);
         if ($stmtClear->execute()) {
-            $response = ['success' => true];
+            // Xóa mã giảm giá trong session nếu có
+            if (isset($_SESSION['coupon'])) {
+                unset($_SESSION['coupon']);
+            }
+            $summary = getCartSummary($conn, $userId);
+            $response = [
+                'success' => true,
+                'newSubtotal' => $summary['newSubtotal'],
+                'newTotal' => $summary['newTotal'],
+                'newCartCount' => $summary['newCartCount'],
+                'discount' => $summary['discount']
+            ];
         }
         $stmtClear->close();
         break;
 
     case 'get_count':
-        $sqlCount = "SELECT SUM(soluong) as count FROM giohang WHERE nguoidung_id = ?";
-        $stmtCount = $conn->prepare($sqlCount);
-        $stmtCount->bind_param("i", $userId);
-        $stmtCount->execute();
-        $resultCount = $stmtCount->get_result();
-        $row = $resultCount->fetch_assoc();
+        $summary = getCartSummary($conn, $userId);
         $response = [
             'success' => true,
-            'count' => (int)($row['count'] ?? 0)
+            'count' => $summary['newCartCount'],
+            'newSubtotal' => $summary['newSubtotal'],
+            'newTotal' => $summary['newTotal'],
+            'discount' => $summary['discount']
         ];
-        $stmtCount->close();
         break;
 
     default:

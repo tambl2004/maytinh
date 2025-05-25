@@ -38,7 +38,7 @@ if (empty($cartItems)) {
 
 // Lấy mã giảm giá từ session
 $discount = isset($_SESSION['coupon']['discount']) ? $_SESSION['coupon']['discount'] : 0;
-$shipping = 50000;
+$shipping = 50000; // Phí vận chuyển mặc định
 $total = $subtotal + $shipping - $discount;
 ?>
 
@@ -272,7 +272,7 @@ $total = $subtotal + $shipping - $discount;
                     </div>
                     <div class="price-item discount-item">
                         <span>Giảm giá:</span>
-                        <span id="discountAmount">-<?php echo number_format($discount, 0, ',', '.'); ?>₫</span>
+                        <span id="discountAmount"><?php echo number_format($discount, 0, ',', '.'); ?>₫</span>
                     </div>
                     <div class="price-divider"></div>
                     <div class="price-total">
@@ -308,6 +308,23 @@ $total = $subtotal + $shipping - $discount;
 </div>
 
 <script>
+// Hàm định dạng số tiền
+function numberFormat(number) {
+    return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
+// Hàm hiển thị thông báo SweetAlert2
+function showToast(message, type = 'success') {
+    Swal.fire({
+        icon: type,
+        title: message,
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 3000
+    });
+}
+
 // Load provinces on page load
 document.addEventListener('DOMContentLoaded', function() {
     fetch('https://provinces.open-api.vn/api/p/')
@@ -334,7 +351,6 @@ document.getElementById('province').addEventListener('change', function() {
     const districtSelect = document.getElementById('district');
     const wardSelect = document.getElementById('ward');
     
-    // Reset district and ward dropdowns
     districtSelect.innerHTML = '<option value="">Chọn quận/huyện</option>';
     wardSelect.innerHTML = '<option value="">Chọn phường/xã</option>';
     districtSelect.disabled = true;
@@ -364,7 +380,6 @@ document.getElementById('district').addEventListener('change', function() {
     const districtCode = this.value;
     const wardSelect = document.getElementById('ward');
     
-    // Reset ward dropdown
     wardSelect.innerHTML = '<option value="">Chọn phường/xã</option>';
     wardSelect.disabled = true;
 
@@ -387,7 +402,7 @@ document.getElementById('district').addEventListener('change', function() {
     }
 });
 
-// Update shipping fee based on selected method
+// Cập nhật phí vận chuyển và tổng tiền khi thay đổi phương thức giao hàng
 document.querySelectorAll('input[name="shipping_method"]').forEach(radio => {
     radio.addEventListener('change', function() {
         const shippingFees = {
@@ -397,17 +412,16 @@ document.querySelectorAll('input[name="shipping_method"]').forEach(radio => {
         };
         
         const selectedFee = shippingFees[this.value];
-        document.getElementById('shippingFee').textContent = new Intl.NumberFormat('vi-VN').format(selectedFee) + '₫';
+        document.getElementById('shippingFee').textContent = numberFormat(selectedFee) + '₫';
         
-        // Update total
         const subtotal = <?php echo $subtotal; ?>;
-        const discount = <?php echo $discount; ?>;
+        const discount = parseInt(document.getElementById('discountAmount').textContent.replace(/[^0-9]/g, '') || 0);
         const newTotal = subtotal + selectedFee - discount;
-        document.getElementById('totalAmount').textContent = new Intl.NumberFormat('vi-VN').format(newTotal) + '₫';
+        document.getElementById('totalAmount').textContent = numberFormat(newTotal) + '₫';
     });
 });
 
-// Apply coupon
+// Áp dụng mã giảm giá
 function applyCoupon() {
     const couponCode = document.getElementById('couponCode').value.trim();
     if (couponCode) {
@@ -419,9 +433,7 @@ function applyCoupon() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                showToast(`Mã giảm giá "${couponCode}" đã được áp dụng thành công!`);
-                // Cập nhật giảm giá và tổng tiền trên giao diện
-                document.getElementById('discountAmount').textContent = '-' + new Intl.NumberFormat('vi-VN').format(data.discount) + '₫';
+                document.getElementById('discountAmount').textContent = numberFormat(data.discount) + '₫';
                 const subtotal = <?php echo $subtotal; ?>;
                 const shipping = document.querySelector('input[name="shipping_method"]:checked').value;
                 const shippingFees = {
@@ -430,16 +442,17 @@ function applyCoupon() {
                     'same_day': 200000
                 };
                 const newTotal = subtotal + shippingFees[shipping] - data.discount;
-                document.getElementById('totalAmount').textContent = new Intl.NumberFormat('vi-VN').format(newTotal) + '₫';
+                document.getElementById('totalAmount').textContent = numberFormat(newTotal) + '₫';
+                showToast(`Mã giảm giá "${couponCode}" đã được áp dụng thành công!`);
             } else {
-                showToast(data.message, 'warning');
+                showToast(data.message || 'Mã giảm giá không hợp lệ!', 'warning');
             }
         })
         .catch(error => {
             showToast('Đã xảy ra lỗi hệ thống!', 'warning');
         });
     } else {
-        alert('Vui lòng nhập mã giảm giá');
+        showToast('Vui lòng nhập mã giảm giá', 'warning');
     }
 }
 
@@ -448,11 +461,12 @@ function setCoupon(code) {
     applyCoupon();
 }
 
-// Place order function
+// Đặt hàng
 function placeOrder() {
     const form = document.getElementById('checkoutForm');
     if (!form.checkValidity()) {
         form.reportValidity();
+        showToast('Vui lòng điền đầy đủ thông tin bắt buộc', 'warning');
         return;
     }
 
@@ -461,9 +475,18 @@ function placeOrder() {
     const paymentMethod = document.querySelector('input[name="payment_method"]:checked').value;
 
     // Lấy tên tỉnh, quận, phường từ các dropdown
-    const provinceName = document.getElementById('province').selectedOptions[0].text;
-    const districtName = document.getElementById('district').selectedOptions[0].text;
-    const wardName = document.getElementById('ward').selectedOptions[0].text;
+    const provinceSelect = document.getElementById('province');
+    const districtSelect = document.getElementById('district');
+    const wardSelect = document.getElementById('ward');
+
+    if (!provinceSelect.value || !districtSelect.value || !wardSelect.value) {
+        showToast('Vui lòng chọn đầy đủ tỉnh/thành, quận/huyện, phường/xã', 'warning');
+        return;
+    }
+
+    const provinceName = provinceSelect.selectedOptions[0].text;
+    const districtName = districtSelect.selectedOptions[0].text;
+    const wardName = wardSelect.selectedOptions[0].text;
 
     const data = {
         action: 'place_order',
@@ -476,8 +499,7 @@ function placeOrder() {
         address: formData.get('address'),
         note: formData.get('note'),
         shipping_method: shippingMethod,
-        payment_method: paymentMethod,
-        coupon_code: '<?php echo isset($_SESSION['coupon']['code']) ? $_SESSION['coupon']['code'] : ''; ?>'
+        payment_method: paymentMethod
     };
 
     fetch('controllers/order_controller.php', {
@@ -493,29 +515,11 @@ function placeOrder() {
                 window.location.href = '?option=home';
             }, 3000);
         } else {
-            showToast('Đặt hàng thất bại! Vui lòng thử lại.', 'warning');
+            showToast(data.message || 'Đặt hàng thất bại! Vui lòng thử lại.', 'warning');
         }
     })
     .catch(error => {
         showToast('Đã xảy ra lỗi hệ thống!', 'warning');
     });
-}
-
-function showToast(message, type = 'success') {
-    const toastElement = document.getElementById('successToast');
-    const toastMessage = document.getElementById('toastMessage');
-    toastMessage.textContent = message;
-    
-    const toastIcon = toastElement.querySelector('.toast-header i');
-    if (type === 'warning') {
-        toastIcon.className = 'fas fa-exclamation-triangle text-warning me-2';
-        toastElement.querySelector('.toast-header strong').textContent = 'Thông báo';
-    } else {
-        toastIcon.className = 'fas fa-check-circle text-success me-2';
-        toastElement.querySelector('.toast-header strong').textContent = 'Thành công';
-    }
-    
-    const toast = new bootstrap.Toast(toastElement);
-    toast.show();
 }
 </script>

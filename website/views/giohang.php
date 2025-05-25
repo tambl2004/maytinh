@@ -16,7 +16,7 @@ $result = $stmt->get_result();
 
 $cartItems = [];
 $total = 0;
-$discount = 0; // Giả lập, cần logic áp mã giảm giá
+$discount = isset($_SESSION['coupon']['discount']) ? $_SESSION['coupon']['discount'] : 0;
 $shipping = 50000; // Phí vận chuyển cố định
 
 while ($row = $result->fetch_assoc()) {
@@ -150,31 +150,31 @@ $stmt->close();
                     <h4 class="order-summary-title">Tóm tắt đơn hàng</h4>
                     
                     <div class="order-summary-item">
-                        <span>Tạm tính (<?php echo count($cartItems); ?> sản phẩm)</span>
-                        <span><?php echo number_format($total, 0, ',', '.') . '₫'; ?></span>
+                        <span>Tạm tính (<span class="cart-count-text"><?php echo count($cartItems); ?></span> sản phẩm)</span>
+                        <span class="subtotal"><?php echo number_format($total, 0, ',', '.') . '₫'; ?></span>
                     </div>
                     
                     <div class="order-summary-item">
                         <span>Giảm giá</span>
-                        <span class="text-success"><?php echo number_format($discount, 0, ',', '.') . '₫'; ?></span>
+                        <span class="text-success discount"><?php echo number_format($discount, 0, ',', '.') . '₫'; ?></span>
                     </div>
                     
                     <div class="order-summary-item">
                         <span>Phí vận chuyển</span>
-                        <span><?php echo $total > 0 ? number_format($shipping, 0, ',', '.') . '₫' : 'Miễn phí'; ?></span>
+                        <span class="shipping"><?php echo $total > 0 ? number_format($shipping, 0, ',', '.') . '₫' : 'Miễn phí'; ?></span>
                     </div>
                     
                     <div class="order-summary-divider"></div>
                     
                     <div class="order-summary-total">
                         <span>Tổng cộng</span>
-                        <span><?php echo number_format($total + $shipping - $discount, 0, ',', '.') . '₫'; ?></span>
+                        <span class="total"><?php echo number_format($total + $shipping - $discount, 0, ',', '.') . '₫'; ?></span>
                     </div>
                     
                     <?php if ($discount > 0): ?>
                         <div class="savings-highlight">
                             <i class="fas fa-tag me-2"></i>
-                            Bạn tiết kiệm được <?php echo number_format($discount, 0, ',', '.') . '₫'; ?>
+                            Bạn tiết kiệm được <span class="discount"><?php echo number_format($discount, 0, ',', '.') . '₫'; ?></span>
                         </div>
                     <?php endif; ?>
                     
@@ -197,8 +197,9 @@ $stmt->close();
                     <div class="available-coupons mt-3">
                         <small class="text-muted">Mã khuyến mãi có sẵn:</small>
                         <div class="coupon-tags mt-2">
-                            <span class="coupon-tag" onclick="setCoupon('SAVE500K')">SAVE500K</span>
-                            <span class="coupon-tag" onclick="setCoupon('NEWUSER10')">NEWUSER10</span>
+                            <span class="coupon-tag" onclick="setCoupon('NEWCUSTOMER')">NEWCUSTOMER</span>
+                            <span class="coupon-tag" onclick="setCoupon('SAVE100K')">SAVE100K</span>
+                            <span class="coupon-tag" onclick="setCoupon('LAPTOP20')">LAPTOP20</span>
                         </div>
                     </div>
                 </div>
@@ -224,6 +225,48 @@ $stmt->close();
 </div>
 
 <script>
+function numberFormat(number) {
+    return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
+function updateCartSummary(data) {
+    // Cập nhật số lượng sản phẩm
+    document.querySelectorAll('.cart-count-text').forEach(el => {
+        el.textContent = `${data.newCartCount} sản phẩm`;
+    });
+
+    // Cập nhật tạm tính
+    document.querySelector('.subtotal').textContent = numberFormat(data.newSubtotal) + '₫';
+
+    // Cập nhật giảm giá
+    document.querySelectorAll('.discount').forEach(el => {
+        el.textContent = numberFormat(data.discount) + '₫';
+    });
+
+    // Cập nhật phí vận chuyển
+    document.querySelector('.shipping').textContent = data.newSubtotal > 0 ? numberFormat(50000) + '₫' : 'Miễn phí';
+
+    // Cập nhật tổng tiền
+    document.querySelector('.total').textContent = numberFormat(data.newTotal) + '₫';
+
+    // Cập nhật badge giỏ hàng
+    const cartCountBadge = document.querySelector('#cartCount');
+    if (cartCountBadge) {
+        cartCountBadge.textContent = data.newCartCount;
+        cartCountBadge.style.display = data.newCartCount > 0 ? 'inline-block' : 'none';
+    }
+
+    // Cập nhật savings-highlight
+    const savingsHighlight = document.querySelector('.savings-highlight');
+    if (savingsHighlight) {
+        if (data.discount > 0) {
+            savingsHighlight.style.display = 'block';
+        } else {
+            savingsHighlight.style.display = 'none';
+        }
+    }
+}
+
 function updateQuantity(itemId, action) {
     const quantityInput = document.getElementById('quantity-' + itemId);
     let currentValue = parseInt(quantityInput.value);
@@ -243,10 +286,24 @@ function updateQuantity(itemId, action) {
     .then(data => {
         if (data.success) {
             quantityInput.value = currentValue;
-            showToast('Đã cập nhật số lượng sản phẩm');
-            location.reload(); // Reload để cập nhật tổng tiền
+            updateCartSummary(data);
+            Swal.fire({
+                icon: 'success',
+                title: 'Đã cập nhật số lượng sản phẩm',
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 1000
+            });
         } else {
-            showToast('Không thể cập nhật số lượng!', 'warning');
+            Swal.fire({
+                icon: 'warning',
+                title: data.message || 'Không thể cập nhật số lượng!',
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 1000
+            });
         }
     });
 }
@@ -261,15 +318,41 @@ function removeFromCart(itemId) {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                document.querySelector(`.cart-item[data-id="${itemId}"]`).style.display = 'none';
-                showToast('Đã xóa sản phẩm khỏi giỏ hàng');
-                if (document.querySelectorAll('.cart-item:not([style*="display: none"])').length === 0) {
-                    location.reload(); // Reload để hiển thị trạng thái giỏ hàng rỗng
-                } else {
-                    location.reload(); // Reload để cập nhật tổng tiền
+                const cartItem = document.querySelector(`.cart-item[data-id="${itemId}"]`);
+                cartItem.remove();
+                updateCartSummary(data);
+                if (data.newCartCount === 0) {
+                    const cartContainer = document.querySelector('.cart-container');
+                    cartContainer.innerHTML = `
+                        <div class="empty-cart-container">
+                            <div class="empty-cart-icon">
+                                <i class="fas fa-shopping-cart"></i>
+                            </div>
+                            <h3 class="empty-cart-title">Giỏ hàng của bạn đang trống</h3>
+                            <p class="empty-cart-text">Hãy khám phá các sản phẩm tuyệt vời của chúng tôi và thêm vào giỏ hàng!</p>
+                            <button class="btn-custom" onclick="location.href='?option=sanpham'">
+                                <i class="fas fa-laptop me-2"></i>Khám phá sản phẩm
+                            </button>
+                        </div>
+                    `;
                 }
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Đã xóa sản phẩm khỏi giỏ hàng',
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 1000
+                });
             } else {
-                showToast('Không thể xóa sản phẩm!', 'warning');
+                Swal.fire({
+                    icon: 'warning',
+                    title: data.message || 'Không thể xóa sản phẩm!',
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 1000
+                });
             }
         });
     }
@@ -284,11 +367,25 @@ function addToWishlist(itemId) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            showToast('Đã thêm vào danh sách yêu thích');
+            Swal.fire({
+                icon: 'success',
+                title: 'Đã thêm vào danh sách yêu thích',
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 1000
+            });
             event.target.closest('.btn-favorite-cart').style.background = 'var(--accent-color)';
             event.target.closest('.btn-favorite-cart').style.color = 'white';
         } else {
-            showToast('Không thể thêm vào yêu thích!', 'warning');
+            Swal.fire({
+                icon: 'warning',
+                title: data.message || 'Không thể thêm vào yêu thích!',
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 1000
+            });
         }
     });
 }
@@ -303,18 +400,71 @@ function clearCart() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                showToast('Đã xóa toàn bộ giỏ hàng');
-                location.reload(); // Reload để hiển thị trạng thái giỏ hàng rỗng
+                const cartContainer = document.querySelector('.cart-container');
+                cartContainer.innerHTML = `
+                    <div class="empty-cart-container">
+                        <div class="empty-cart-icon">
+                            <i class="fas fa-shopping-cart"></i>
+                        </div>
+                        <h3 class="empty-cart-title">Giỏ hàng của bạn đang trống</h3>
+                        <p class="empty-cart-text">Hãy khám phá các sản phẩm tuyệt vời của chúng tôi và thêm vào giỏ hàng!</p>
+                        <button class="btn-custom" onclick="location.href='?option=sanpham'">
+                            <i class="fas fa-laptop me-2"></i>Khám phá sản phẩm
+                        </button>
+                    </div>
+                `;
+                updateCartSummary(data);
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Đã xóa toàn bộ giỏ hàng',
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 1000
+                });
             } else {
-                showToast('Không thể xóa giỏ hàng!', 'warning');
+                Swal.fire({
+                    icon: 'warning',
+                    title: data.message || 'Không thể xóa giỏ hàng!',
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 1000
+                });
             }
         });
     }
 }
 
 function updateCart() {
-    showToast('Đã cập nhật giỏ hàng');
-    location.reload();
+    fetch('controllers/cart_controller.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'action=get_count'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            updateCartSummary(data);
+            Swal.fire({
+                icon: 'success',
+                title: 'Đã cập nhật giỏ hàng',
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 1000
+            });
+        } else {
+            Swal.fire({
+                icon: 'warning',
+                title: data.message || 'Không thể cập nhật giỏ hàng!',
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 1000
+            });
+        }
+    });
 }
 
 function applyCoupon() {
@@ -328,14 +478,35 @@ function applyCoupon() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                showToast('Đã áp dụng mã giảm giá: ' + couponCode);
-                location.reload();
+                updateCartSummary(data);
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Đã áp dụng mã giảm giá: ' + couponCode,
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 1000
+                });
             } else {
-                showToast('Mã giảm giá không hợp lệ!', 'warning');
+                Swal.fire({
+                    icon: 'warning',
+                    title: data.message || 'Mã giảm giá không hợp lệ!',
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 1000
+                });
             }
         });
     } else {
-        alert('Vui lòng nhập mã giảm giá');
+        Swal.fire({
+            icon: 'warning',
+            title: 'Vui lòng nhập mã giảm giá',
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 1000
+        });
     }
 }
 
@@ -345,30 +516,21 @@ function setCoupon(code) {
 }
 
 function proceedToCheckout() {
-    showToast('Đang chuyển đến trang thanh toán...');
-    location.href = '?option=thanhtoan';
+    Swal.fire({
+        icon: 'success',
+        title: 'Đang chuyển đến trang thanh toán...',
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 1000
+    });
+    setTimeout(() => {
+        location.href = '?option=thanhtoan';
+    }, 1000);
 }
 
 function continueShopping() {
     location.href = '?option=sanpham';
-}
-
-function showToast(message, type = 'success') {
-    const toastElement = document.getElementById('successToast');
-    const toastMessage = document.getElementById('toastMessage');
-    toastMessage.textContent = message;
-    
-    const toastIcon = toastElement.querySelector('.toast-header i');
-    if (type === 'warning') {
-        toastIcon.className = 'fas fa-exclamation-triangle text-warning me-2';
-        toastElement.querySelector('.toast-header strong').textContent = 'Thông báo';
-    } else {
-        toastIcon.className = 'fas fa-check-circle text-success me-2';
-        toastElement.querySelector('.toast-header strong').textContent = 'Thành công';
-    }
-    
-    const toast = new bootstrap.Toast(toastElement);
-    toast.show();
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -377,10 +539,7 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                const cartCount = document.querySelector('.badge.bg-danger');
-                if (cartCount) {
-                    cartCount.textContent = data.count;
-                }
+                updateCartSummary(data);
             }
         });
 });

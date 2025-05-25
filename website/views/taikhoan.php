@@ -113,12 +113,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['change_password'])) {
                 <div class="tab-pane fade show active" id="personal-info">
                     <div class="contact-form-card">
                         <h3 class="section-title">Thông tin cá nhân</h3>
-                        <?php if (!empty($error_message)): ?>
-                            <div class="alert alert-danger"><?php echo $error_message; ?></div>
-                        <?php endif; ?>
-                        <?php if (!empty($success_message)): ?>
-                            <div class="alert alert-success"><?php echo $success_message; ?></div>
-                        <?php endif; ?>
                         <form method="POST" action="">
                             <input type="hidden" name="update_profile">
                             <div class="mb-3">
@@ -149,12 +143,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['change_password'])) {
                 <div class="tab-pane fade" id="change-password">
                     <div class="contact-form-card">
                         <h3 class="section-title">Đổi mật khẩu</h3>
-                        <?php if (!empty($error_message)): ?>
-                            <div class="alert alert-danger"><?php echo $error_message; ?></div>
-                        <?php endif; ?>
-                        <?php if (!empty($success_message)): ?>
-                            <div class="alert alert-success"><?php echo $success_message; ?></div>
-                        <?php endif; ?>
                         <form method="POST" action="">
                             <input type="hidden" name="change_password">
                             <div class="mb-3">
@@ -296,7 +284,30 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['change_password'])) {
         </div>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            <?php if (!empty($success_message)): ?>
+                Swal.fire({
+                    icon: 'success',
+                    title: '<?php echo $success_message; ?>',
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 3000
+                });
+            <?php elseif (!empty($error_message)): ?>
+                Swal.fire({
+                    icon: 'warning',
+                    title: '<?php echo $error_message; ?>',
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 3000
+                });
+            <?php endif; ?>
+        });
+    </script>
+
     <style>
         .form-control-custom { border-radius: 8px; padding: 0.75rem; }
         .btn-submit-form { background-color: #007bff; color: #fff; border: none; border-radius: 8px; padding: 0.75rem 1.5rem; }

@@ -1,5 +1,4 @@
 <?php
-
 $userId = $_SESSION['id'];
 
 // Lấy danh sách sản phẩm từ database
@@ -182,23 +181,17 @@ function formatPrice(price) {
     }).format(price);
 }
 
-// Show toast notification
+// Hiển thị thông báo SweetAlert2 dạng toast
 function showToast(message, type = 'success') {
-    const toastElement = document.getElementById('successToast');
-    const toastMessage = document.getElementById('toastMessage');
-    toastMessage.textContent = message;
-    
-    const toastIcon = toastElement.querySelector('.toast-header i');
-    if (type === 'warning') {
-        toastIcon.className = 'fas fa-exclamation-triangle text-warning me-2';
-        toastElement.querySelector('.toast-header strong').textContent = 'Thông báo';
-    } else {
-        toastIcon.className = 'fas fa-check-circle text-success me-2';
-        toastElement.querySelector('.toast-header strong').textContent = 'Thành công';
-    }
-    
-    const toast = new bootstrap.Toast(toastElement);
-    toast.show();
+    Swal.fire({
+        icon: type,
+        title: message,
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 1000,
+        timerProgressBar: true
+    });
 }
 
 // Toggle favorite
@@ -217,16 +210,19 @@ function toggleFavorite(id) {
                 icon.classList.remove('far');
                 icon.classList.add('fas');
                 btn.classList.add('active');
-                showToast('Đã thêm vào danh sách yêu thích!');
+                showToast('Đã thêm vào danh sách yêu thích!', 'success');
             } else {
                 icon.classList.remove('fas');
                 icon.classList.add('far');
                 btn.classList.remove('active');
-                showToast('Đã xóa khỏi danh sách yêu thích!');
+                showToast('Đã xóa khỏi danh sách yêu thích!', 'warning');
             }
         } else {
-            showToast('Có lỗi xảy ra!', 'warning');
+            showToast(data.message || 'Có lỗi xảy ra!', 'warning');
         }
+    })
+    .catch(error => {
+        showToast('Đã xảy ra lỗi hệ thống!', 'warning');
     });
 }
 
@@ -237,15 +233,41 @@ function addToCart(id) {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: `action=add&product_id=${id}&quantity=1`
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
-            document.getElementById('cartCount').textContent = data.count;
+            const cartCount = document.getElementById('cartCount');
+            if (cartCount) {
+                cartCount.textContent = data.newCartCount;
+                cartCount.style.display = data.newCartCount > 0 ? 'inline-block' : 'none';
+            } else if (data.newCartCount > 0) {
+                const cartIcon = document.querySelector('.nav-link[href="?option=giohang"]');
+                const badge = document.createElement('span');
+                badge.id = 'cartCount';
+                badge.className = 'badge bg-danger';
+                badge.style.position = 'relative';
+                badge.style.bottom = '15px';
+                badge.textContent = data.newCartCount;
+                cartIcon.appendChild(badge);
+            }
             const laptop = laptops.find(l => l.id === id);
-            showToast(`Đã thêm "${laptop.name}" vào giỏ hàng!`);
+            if (laptop) {
+                showToast(`Đã thêm "${laptop.name}" vào giỏ hàng!`, 'success');
+            } else {
+                showToast('Đã thêm sản phẩm vào giỏ hàng!', 'success');
+            }
         } else {
-            showToast('Không thể thêm vào giỏ hàng!', 'warning');
+            showToast(data.message || 'Không thể thêm vào giỏ hàng!', 'warning');
         }
+    })
+    .catch(error => {
+        console.error('Lỗi chi tiết:', error); // Ghi log lỗi chi tiết
+        showToast('Đã xảy ra lỗi: ' + error.message, 'warning');
     });
 }
 
@@ -293,8 +315,12 @@ function renderProducts(products) {
 
     // Hiệu ứng hiển thị
     document.querySelectorAll('.product-card').forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(20px)';
         setTimeout(() => {
-            card.classList.add('fade-in');
+            card.style.transition = 'all 0.5s ease';
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
         }, index * 100);
     });
 }
@@ -349,9 +375,25 @@ document.addEventListener('DOMContentLoaded', function() {
     fetch('controllers/cart_controller.php?action=get_count')
         .then(response => response.json())
         .then(data => {
-            if (data.success) {
-                document.getElementById('cartCount').textContent = data.count;
+            if (data.success && data.newCartCount > 0) {
+                const cartCount = document.getElementById('cartCount');
+                if (cartCount) {
+                    cartCount.textContent = data.newCartCount;
+                    cartCount.style.display = 'inline-block';
+                } else {
+                    const cartIcon = document.querySelector('.nav-link[href="?option=giohang"]');
+                    const badge = document.createElement('span');
+                    badge.id = 'cartCount';
+                    badge.className = 'badge bg-danger';
+                    badge.style.position = 'relative';
+                    badge.style.bottom = '15px';
+                    badge.textContent = data.newCartCount;
+                    cartIcon.appendChild(badge);
+                }
             }
+        })
+        .catch(error => {
+            console.error('Lỗi khi cập nhật số lượng giỏ hàng:', error);
         });
 });
 </script>

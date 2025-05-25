@@ -5,15 +5,16 @@ require_once '../../inc/auth.php';
 
 header('Content-Type: application/json');
 
+if (!isLoggedIn()) {
+    echo json_encode(['success' => false, 'message' => 'Vui lòng đăng nhập']);
+    exit;
+}
+
+$userId = $_SESSION['id'];
 $action = isset($_POST['action']) ? $_POST['action'] : '';
+$shipping = 50000; // Phí vận chuyển mặc định
 
 if ($action === 'apply') {
-    if (!isLoggedIn()) {
-        echo json_encode(['success' => false, 'message' => 'Vui lòng đăng nhập']);
-        exit;
-    }
-
-    $userId = $_SESSION['id'];
     $couponCode = trim($_POST['code'] ?? '');
 
     if (empty($couponCode)) {
@@ -21,8 +22,8 @@ if ($action === 'apply') {
         exit;
     }
 
-    // Lấy tổng giá trị giỏ hàng
-    $sql = "SELECT SUM(g.soluong * s.gia) as subtotal
+    // Lấy giỏ hàng
+    $sql = "SELECT g.soluong, s.gia
             FROM giohang g
             JOIN sanpham s ON g.sanpham_id = s.id
             WHERE g.nguoidung_id = ?";
@@ -30,7 +31,13 @@ if ($action === 'apply') {
     $stmt->bind_param("i", $userId);
     $stmt->execute();
     $result = $stmt->get_result();
-    $subtotal = $result->fetch_assoc()['subtotal'] ?? 0;
+
+    $subtotal = 0;
+    $cartCount = 0;
+    while ($row = $result->fetch_assoc()) {
+        $subtotal += $row['gia'] * $row['soluong'];
+        $cartCount += $row['soluong'];
+    }
     $stmt->close();
 
     if ($subtotal <= 0) {
@@ -82,8 +89,19 @@ if ($action === 'apply') {
         'coupon_id' => $coupon['id']
     ];
 
-    echo json_encode(['success' => true, 'message' => 'Mã giảm giá được áp dụng thành công', 'discount' => $discount]);
+    $total = $subtotal + $shipping - $discount;
+
+    echo json_encode([
+        'success' => true,
+        'message' => 'Mã giảm giá được áp dụng thành công',
+        'newSubtotal' => $subtotal,
+        'newTotal' => $total,
+        'newCartCount' => $cartCount,
+        'discount' => $discount
+    ]);
 } else {
     echo json_encode(['success' => false, 'message' => 'Hành động không hợp lệ']);
 }
+
+$conn->close();
 ?>

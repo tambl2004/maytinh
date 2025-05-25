@@ -322,7 +322,8 @@ if ($userId) {
                 <?php if ($product['review_count'] > 3): ?>
                     <button class="btn btn-outline-primary" onclick="loadMoreReviews()">Xem thêm đánh giá</button>
                 <?php endif; ?>
-            <?php endif; ?>
+            <?php endif;
+            ?>
         </div>
     </div>
 </div>
@@ -373,9 +374,23 @@ if ($userId) {
         .then(data => {
             if (data.success) {
                 document.getElementById('cartCount').textContent = data.count;
-                showToast(`Đã thêm "${product.name}" vào giỏ hàng!`);
+                Swal.fire({
+                    icon: 'success',
+                    title: `Đã thêm "${product.name}" vào giỏ hàng!`,
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 3000
+                });
             } else {
-                showToast('Không thể thêm vào giỏ hàng!', 'warning');
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Không thể thêm vào giỏ hàng!',
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 3000
+                });
             }
         });
     }
@@ -402,35 +417,38 @@ if ($userId) {
                     icon.classList.remove('far');
                     icon.classList.add('fas');
                     favoriteBtn.classList.add('active');
-                    showToast('Đã thêm vào danh sách yêu thích!');
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Đã thêm vào danh sách yêu thích!',
+                        toast: true,
+                        position: 'top-end',
+                        showConfirmButton: false,
+                        timer: 3000
+                    });
                 } else {
                     icon.classList.remove('fas');
                     icon.classList.add('far');
                     favoriteBtn.classList.remove('active');
-                    showToast('Đã xóa khỏi danh sách yêu thích!');
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Đã xóa khỏi danh sách yêu thích!',
+                        toast: true,
+                        position: 'top-end',
+                        showConfirmButton: false,
+                        timer: 3000
+                    });
                 }
             } else {
-                showToast('Có lỗi xảy ra!', 'warning');
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Có lỗi xảy ra!',
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 3000
+                });
             }
         });
-    }
-
-    function showToast(message, type = 'success') {
-        const toastElement = document.getElementById('successToast');
-        const toastMessage = document.getElementById('toastMessage');
-        toastMessage.textContent = message;
-        
-        const toastIcon = toastElement.querySelector('.toast-header i');
-        if (type === 'warning') {
-            toastIcon.className = 'fas fa-exclamation-triangle text-warning me-2';
-            toastElement.querySelector('.toast-header strong').textContent = 'Thông báo';
-        } else {
-            toastIcon.className = 'fas fa-check-circle text-success me-2';
-            toastElement.querySelector('.toast-header strong').textContent = 'Thành công';
-        }
-        
-        const toast = new bootstrap.Toast(toastElement);
-        toast.show();
     }
 
     function loadMoreReviews() {
