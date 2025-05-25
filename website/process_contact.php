@@ -79,8 +79,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $stmt->bind_param('sssss', $fullName, $email, $phone, $subject, $message);
         if ($stmt->execute()) {
-            echo json_encode(['success' => true, 'message' => "Cảm ơn $fullName! Tin nhắn của bạn đã được gửi thành công. Chúng tôi sẽ phản hồi trong vòng 24 giờ."]);
-        } else {
+            echo json_encode(['success' => true, 'message' => "Cảm ơn $fullName! Tin nhắn của bạn đã được gửi thành công. Chúng tôi sẽ phản hồi trong vòng 24 giờ."], JSON_UNESCAPED_UNICODE);
+            } else {
             throw new Exception('Lỗi khi lưu tin nhắn: ' . $stmt->error);
         }
 

@@ -234,6 +234,47 @@ if ($isLoggedIn) {
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('contactForm');
+
+    form.addEventListener('submit', function(event) {
+        event.preventDefault(); // Ngăn chặn hành vi mặc định của form
+
+        const formData = new FormData(form);
+
+        fetch('process_contact.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Thành công',
+                    html: data.message,
+                    confirmButtonText: 'OK'
+                });
+                form.reset(); // Reset form sau khi gửi thành công
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Lỗi',
+                    html: data.message,
+                    confirmButtonText: 'OK'
+                });
+            }
+        })
+        .catch(error => {
+            Swal.fire({
+                icon: 'error',
+                title: 'Lỗi',
+                html: 'Đã xảy ra lỗi khi gửi tin nhắn. Vui lòng thử lại.',
+                confirmButtonText: 'OK'
+            });
+        });
+    });
+
+    // Giữ đoạn code toast hiện tại nếu cần
     <?php if (isset($_SESSION['toast'])): ?>
         Swal.fire({
             icon: '<?php echo $_SESSION['toast']['type'] === 'success' ? 'success' : 'error'; ?>',

@@ -27,9 +27,9 @@ $option = isset($_GET['option']) ? $_GET['option'] : 'home';
                     <div class="admin-profile">
                         <div class="admin-avatar">
                             <!-- Replace with actual user image -->
-                            <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face" alt="Admin">
+                            <img src="../uploads/avata.jpg" alt="Admin">
                         </div>
-                        <div class="admin-name">Nguyễn Văn Admin</div>
+                        <div class="admin-name">Đào Văn Tâm</div>
                         <div class="admin-role">Quản trị viên</div>
                         <div class="admin-actions">
                             <a href="?option=profile" class="admin-action-btn">
